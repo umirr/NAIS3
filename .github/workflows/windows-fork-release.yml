@@ -22,13 +22,13 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Check version and release notes
         shell: pwsh
         run: |
           $version = node -p "require('./package.json').version"
           node scripts/verify-release.mjs version "v$version"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm run build:win --publish never
         env:
@@ -80,3 +80,4 @@ jobs:
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets \
             --jq 'if (.assets | length) == 3 then .assets[].name else error("Expected three release assets") end'
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
