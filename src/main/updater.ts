@@ -13,7 +13,7 @@ import { t } from './i18n'
 const { autoUpdater } = electronUpdater
 const execFileP = promisify(execFile)
 
-const REPO = 'sunanakgo/NAIS3'
+const REPO = 'umirr/NAIS3'
 const RELEASE_PAGE = `https://github.com/${REPO}/releases/latest`
 
 /**

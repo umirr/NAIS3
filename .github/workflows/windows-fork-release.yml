@@ -1,0 +1,82 @@
+name: Windows Fork Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-fork-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'umirr/NAIS3' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Check version and release notes
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          node scripts/verify-release.mjs version "v$version"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm run build:win --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - run: node scripts/verify-packaged-app.mjs win32 x64
+      - run: node scripts/verify-release.mjs assets win32-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/latest.yml
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-release
+          path: dist
+      - name: Create and publish Windows release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          tag="v$version"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists; refusing to replace it."
+            exit 1
+          fi
+          gh release create "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "NAIS3 $version — Windows 글꼴 렌더링 개선 (umirr Fork)" \
+            --notes-file "release-notes/$tag.md" \
+            --draft \
+            "dist/nais3-$version-setup.exe" \
+            "dist/nais3-$version-setup.exe.blockmap" \
+            dist/latest.yml
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq 'if (.assets | length) == 3 then .assets[].name else error("Expected three release assets") end'
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest

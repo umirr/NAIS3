@@ -71,5 +71,5 @@ linux:
 npmRebuild: false
 publish:
   provider: github
-  owner: sunanakgo
+  owner: umirr
   repo: NAIS3
