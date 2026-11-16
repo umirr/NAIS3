@@ -16,9 +16,9 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -35,7 +35,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - run: node scripts/verify-packaged-app.mjs win32 x64
       - run: node scripts/verify-release.mjs assets win32-x64
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-release
           path: |
@@ -51,8 +51,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: windows-release
           path: dist
@@ -72,7 +72,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "NAIS3 $version — Windows 글꼴 렌더링 개선 (umirr Fork)" \
-            --notes-file "release-notes/$tag.md" \
+            --notes-file "release-notes/fork-$tag.md" \
             --draft \
             "dist/nais3-$version-setup.exe" \
             "dist/nais3-$version-setup.exe.blockmap" \
