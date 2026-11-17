@@ -71,8 +71,8 @@ jobs:
           gh release create "$tag" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "NAIS3 $version — Windows 글꼴 렌더링 개선 (umirr Fork)" \
-            --notes-file "release-notes/fork-$tag.md" \
+            --title "NAIS3 $version (umirr Fork)" \
+            --notes-file "release-notes/$tag.md" \
             --draft \
             "dist/nais3-$version-setup.exe" \
             "dist/nais3-$version-setup.exe.blockmap" \
@@ -80,4 +80,3 @@ jobs:
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets \
             --jq 'if (.assets | length) == 3 then .assets[].name else error("Expected three release assets") end'
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
-
