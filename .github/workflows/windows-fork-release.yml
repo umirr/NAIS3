@@ -2,6 +2,8 @@ name: Windows Fork Release
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['release/v1.0.320']
 
 permissions:
   contents: read
@@ -12,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository == 'umirr/NAIS3' && github.ref == 'refs/heads/main'
+    if: github.repository == 'umirr/NAIS3' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/v1.0.320')
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -80,3 +82,4 @@ jobs:
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets \
             --jq 'if (.assets | length) == 3 then .assets[].name else error("Expected three release assets") end'
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
