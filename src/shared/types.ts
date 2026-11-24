@@ -41,7 +41,14 @@ export interface VibeItem {
   folderId: number | null
 }
 
-export type CharRefType = 'character' | 'style' | 'character&style' | 'costume' | 'delta'
+export type CharRefType =
+  | 'character'
+  | 'style'
+  | 'character&style'
+  | 'costume'
+  | 'delta'
+  | 'character_mainoutfit'
+  | 'character&style_anyoutfit'
 
 export interface CharRefItem {
   id: number

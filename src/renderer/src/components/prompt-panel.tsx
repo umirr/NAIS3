@@ -72,10 +72,16 @@ export function PromptPanel(): React.JSX.Element {
   )
   const crefOverlayOpen = useCharRefsStore((s) => s.overlayOpen)
   const setCrefOpen = useCharRefsStore((s) => s.setOverlayOpen)
-  const enabledCrefs = useCharRefsStore((s) => s.items.filter((c) => c.enabled).length)
+  const enabledCrefs = useCharRefsStore(
+    (s) =>
+      s.items.filter(
+        (c) =>
+          c.enabled && (request.model.startsWith('nai-diffusion-5-') || c.refType !== 'costume')
+      ).length
+  )
   const source = useGenerationStore((s) => s.source)
   const opusUsage = useGenerationStore((s) => s.opusUsage)
-  const capabilities = modelCapabilities(request.model)
+  const capabilities = modelCapabilities(request.model, Boolean(source?.maskBase64))
   const tokenLimit = promptTokenLimit(request.model)
   const estimateModel = source?.maskBase64 ? inpaintingModelFor(request.model) : request.model
   const estimateSize = source

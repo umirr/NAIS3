@@ -232,7 +232,10 @@ async function runQueue(): Promise<void> {
           },
           controller.signal
         )
-        const capabilities = modelCapabilities(item.request.model)
+        const capabilities = modelCapabilities(
+          item.request.model,
+          Boolean(item.request.source?.maskBase64)
+        )
         const selectedVibes = !capabilities.vibes
           ? []
           : item.request.vibeIds !== undefined

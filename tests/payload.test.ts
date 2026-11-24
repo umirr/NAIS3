@@ -110,7 +110,7 @@ describe('payload builder', () => {
     expect(p.parameters.tag_hint_transparent_background).toBe(true)
   })
 
-  it('V5에서는 출시 시점 미지원 바이브·정밀 레퍼런스를 payload에서 제외한다', () => {
+  it('V5는 바이브를 제외하고 정밀 레퍼런스를 전송한다', () => {
     const p = buildGenerateImagePayload(
       { ...baseRequest, model: 'nai-diffusion-5-curated' },
       {
@@ -121,7 +121,7 @@ describe('payload builder', () => {
       }
     )
     expect(p.parameters).not.toHaveProperty('reference_image_multiple')
-    expect(p.parameters).not.toHaveProperty('director_reference_images')
+    expect(p.parameters.director_reference_images).toEqual(['ref'])
   })
 
   it('V5 i2i는 V5 모델·params v4·img2img 파라미터를 유지한다', () => {
@@ -588,5 +588,72 @@ describe('localPromptMetadata', () => {
 
   it('returns undefined without split prompt parts', () => {
     expect(localPromptMetadata({ ...baseRequest, promptParts: undefined })).toBeUndefined()
+  })
+})
+
+describe('V5 Precise Reference (official client 2026-11-25)', () => {
+  const refs = [
+    {
+      referenceType: 'character_mainoutfit' as const,
+      strength: 3.5,
+      fidelity: 0.2,
+      imageBase64: 'character'
+    },
+    { referenceType: 'costume' as const, strength: 5, fidelity: 0.6, imageBase64: 'outfit' },
+    {
+      referenceType: 'character&style_anyoutfit' as const,
+      strength: 2,
+      fidelity: 0.8,
+      imageBase64: 'style'
+    }
+  ]
+  it.each(['nai-diffusion-5-curated', 'nai-diffusion-5-full', 'nai-diffusion-5-full-medium'])(
+    '%s sends aligned reference arrays and fixed secondary strength',
+    (model) => {
+      const p = buildGenerateImagePayload({ ...baseRequest, model }, { characterReferences: refs })
+      expect(p.parameters.director_reference_images).toEqual(['character', 'outfit', 'style'])
+      expect(p.parameters.director_reference_strength_values).toEqual([3.5, 5, 2])
+      expect(p.parameters.director_reference_secondary_strength_values).toEqual([0, 0, 0])
+      expect(p.parameters.director_reference_information_extracted).toEqual([1, 1, 1])
+      expect(p.parameters.director_reference_descriptions).toEqual(
+        refs.map((r) => ({
+          caption: { base_caption: r.referenceType, char_captions: [] },
+          legacy_uc: false
+        }))
+      )
+    }
+  )
+  it('V4.5 skips outfit-only, maps outfit variants and keeps fidelity', () => {
+    const p = buildGenerateImagePayload(baseRequest, { characterReferences: refs })
+    expect(p.parameters.director_reference_images).toEqual(['character', 'style'])
+    expect(p.parameters.director_reference_strength_values).toEqual([1, 1])
+    expect(p.parameters.director_reference_secondary_strength_values).toEqual([0.8, 1 - 0.8])
+    expect(p.parameters.director_reference_descriptions).toEqual(
+      ['character', 'character&style'].map((base_caption) => ({
+        caption: { base_caption, char_captions: [] },
+        legacy_uc: false
+      }))
+    )
+  })
+  it.each([
+    'nai-diffusion-5-full',
+    'nai-diffusion-5-full-inpainting',
+    'nai-diffusion-5-full-medium-inpainting'
+  ])('%s never sends refs with a mask', (model) => {
+    const p = buildGenerateImagePayload(
+      { ...baseRequest, model },
+      {
+        characterReferences: refs,
+        i2i: {
+          imageBase64: 'source',
+          maskBase64: 'mask',
+          strength: 1,
+          noise: 0,
+          extraNoiseSeed: 1,
+          colorCorrect: false
+        }
+      }
+    )
+    expect(Object.keys(p.parameters).filter((k) => k.startsWith('director_reference'))).toEqual([])
   })
 })

@@ -14,7 +14,8 @@ import {
 } from '../main/nai/payload'
 import { ENDPOINTS } from '../main/nai/endpoints'
 import { upscaleRequest } from '../main/nai/upscale-request'
-import { isV5Model } from '../shared/nai-models'
+import { isV5Model, modelCapabilities } from '../shared/nai-models'
+import { v5ReferenceSize } from '../shared/reference-image'
 import { parseSubscriptionResponse, type NaiSubscriptionResponse } from '../shared/subscription'
 import { countWithQwenTokenizer, loadQwenTokenizer } from '../main/nai/qwen-tokenizer-core'
 
@@ -109,34 +110,46 @@ async function prepareVibes(
   return { options, encodings }
 }
 
-async function prepareCharRefs(
-  inputs: BrowserCharRefInput[]
+export async function prepareBrowserCharRefs(
+  inputs: BrowserCharRefInput[],
+  model: string
 ): Promise<CharacterReferenceOptions[]> {
   return Promise.all(
-    inputs.map(async (input) => {
-      const image = sharp(Buffer.from(input.imageBase64, 'base64'))
-      const metadata = await image.metadata()
-      const ratio = (metadata.width ?? 1) / (metadata.height ?? 1)
-      const canvas =
-        ratio > 1.2
-          ? { width: 1536, height: 1024 }
-          : ratio < 1 / 1.2
-            ? { width: 1024, height: 1536 }
-            : { width: 1472, height: 1472 }
-      const processed = await image
-        .resize(canvas.width, canvas.height, {
-          fit: 'contain',
-          background: { r: 0, g: 0, b: 0 }
-        })
-        .png()
-        .toBuffer()
-      return {
-        referenceType: input.referenceType,
-        strength: input.strength,
-        fidelity: input.fidelity,
-        imageBase64: processed.toString('base64')
-      }
-    })
+    inputs
+      .filter((input) => isV5Model(model) || input.referenceType !== 'costume')
+      .map(async (input) => {
+        const image = sharp(Buffer.from(input.imageBase64, 'base64'))
+        const metadata = await image.metadata()
+        if (isV5Model(model)) {
+          const size = v5ReferenceSize(metadata.width ?? 1, metadata.height ?? 1)
+          const processed = await image
+            .resize(size.resizeWidth, size.resizeHeight, { fit: 'fill' })
+            .extract({ left: size.left, top: size.top, width: size.width, height: size.height })
+            .png()
+            .toBuffer()
+          return { ...input, imageBase64: processed.toString('base64') }
+        }
+        const ratio = (metadata.width ?? 1) / (metadata.height ?? 1)
+        const canvas =
+          ratio > 1.2
+            ? { width: 1536, height: 1024 }
+            : ratio < 1 / 1.2
+              ? { width: 1024, height: 1536 }
+              : { width: 1472, height: 1472 }
+        const processed = await image
+          .resize(canvas.width, canvas.height, {
+            fit: 'contain',
+            background: { r: 0, g: 0, b: 0 }
+          })
+          .png()
+          .toBuffer()
+        return {
+          referenceType: input.referenceType,
+          strength: input.strength,
+          fidelity: input.fidelity,
+          imageBase64: processed.toString('base64')
+        }
+      })
   )
 }
 
@@ -171,14 +184,18 @@ async function route(
     const token = String(body.token ?? '')
     const request = body.request as GenerationRequest
     const source = request.source
+    const capabilities = modelCapabilities(request.model, Boolean(source?.maskBase64))
     const preparedVibes = await prepareVibes(
       token,
       request.model,
-      (body.vibes as BrowserVibeInput[] | undefined) ?? [],
+      capabilities.vibes ? ((body.vibes as BrowserVibeInput[] | undefined) ?? []) : [],
       signal
     )
-    const characterReferences = await prepareCharRefs(
-      (body.characterReferences as BrowserCharRefInput[] | undefined) ?? []
+    const characterReferences = await prepareBrowserCharRefs(
+      capabilities.characterReferences
+        ? ((body.characterReferences as BrowserCharRefInput[] | undefined) ?? [])
+        : [],
+      request.model
     )
     const buildOptions: BuildOptions = {
       ...(source

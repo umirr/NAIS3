@@ -31,10 +31,10 @@ describe('NAI 모델별 동작', () => {
     })
   })
 
-  it('V5는 출시 시점에 바이브·정밀 레퍼런스·Variety+를 지원하지 않는다', () => {
+  it('V5는 정밀 레퍼런스를 지원하고 바이브·Variety+는 지원하지 않는다', () => {
     expect(modelCapabilities('nai-diffusion-5-curated')).toMatchObject({
       vibes: false,
-      characterReferences: false,
+      characterReferences: true,
       variety: false,
       noiseScheduleSelection: false,
       transparency: true,
@@ -91,3 +91,12 @@ describe('V5 Full Effort 토글 (Medium/High)', () => {
     expect(effectiveSteps('nai-diffusion-5-full', 28)).toBe(28)
   })
 })
+
+it.each(['nai-diffusion-5-curated', 'nai-diffusion-5-full', 'nai-diffusion-5-full-medium'])(
+  '%s supports refs except inpainting',
+  (model) => {
+    expect(modelCapabilities(model).characterReferences).toBe(true)
+    expect(modelCapabilities(model, true).characterReferences).toBe(false)
+    expect(modelCapabilities(model + '-inpainting').characterReferences).toBe(false)
+  }
+)

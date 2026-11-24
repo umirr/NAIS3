@@ -359,6 +359,8 @@ export const ZH_CN = {
   'ui.notEncodedForCurrentModel2AnlasOnGenerate': '未按当前模型编码（生成时消耗 2 Anlas）',
   'ui.nameOptional': '名称（可选）',
   'ui.vibeTransfer': '氛围传递',
+  'ui.referencePreferSameOutfit': '优先相同服装',
+  'ui.v5ReferenceInpaintingUnsupported': 'V5 局部重绘不应用参考图。',
   'ui.characterReference': '角色参考',
   'ui.search': '搜索',
   'ui.parameters': '参数',

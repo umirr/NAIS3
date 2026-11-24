@@ -81,11 +81,12 @@ export interface NaiModelCapabilities {
   maxCharacters: number
 }
 
-export function modelCapabilities(model: string): NaiModelCapabilities {
+export function modelCapabilities(model: string, inpainting = false): NaiModelCapabilities {
   if (isV5Model(model)) {
     return {
       vibes: false,
-      characterReferences: false,
+      // Precise Reference released 2026-11-24; V5 inpainting is not supported yet.
+      characterReferences: !inpainting && !model.includes('inpainting'),
       variety: false,
       noiseScheduleSelection: false,
       transparency: true,

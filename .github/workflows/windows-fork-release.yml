@@ -71,7 +71,7 @@ jobs:
           gh release create "$tag" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "NAIS3 $version (umirr Fork)" \
+            --title "NAIS3 $version — V5 레퍼런스 지원" \
             --notes-file "release-notes/$tag.md" \
             --draft \
             "dist/nais3-$version-setup.exe" \

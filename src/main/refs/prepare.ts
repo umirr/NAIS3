@@ -3,6 +3,8 @@ import sharp from '../sharp'
 import type { CharacterReferenceOptions, VibeOptions } from '../nai/payload'
 import { ENDPOINTS } from '../nai/endpoints'
 import { t } from '../i18n'
+import { isV5Model } from '../../shared/nai-models'
+import { v5ReferenceSize } from '../../shared/reference-image'
 import {
   charRefRowsByIds,
   enabledCharRefRows,
@@ -50,14 +52,23 @@ export async function prepareVibes(
 }
 
 /**
- * 캐릭레퍼 이미지 전처리 — OpenAPI 명세: 1024×1536 / 1536×1024 / 1472×1472
- * 캔버스에 검정 패딩으로 맞춰 전송. 종횡비에 따라 캔버스 선택.
+ * V5는 약 1MP 버킷으로 중앙 크롭. V4.5는 기존 3가지 캔버스에 검정 패딩.
  */
-async function processCharRefImage(filePath: string): Promise<string> {
+export async function processCharRefImage(filePath: string, model: string): Promise<string> {
   const buf = readFileSync(filePath)
   const meta = await sharp(buf).metadata()
   const w = meta.width ?? 1
   const h = meta.height ?? 1
+  if (isV5Model(model)) {
+    // Official V5 client uses a ~1MP aspect-ratio bucket and a centered crop.
+    const size = v5ReferenceSize(w, h)
+    const png = await sharp(buf)
+      .resize(size.resizeWidth, size.resizeHeight, { fit: 'fill' })
+      .extract({ left: size.left, top: size.top, width: size.width, height: size.height })
+      .png()
+      .toBuffer()
+    return png.toString('base64')
+  }
   const ratio = w / h
   const canvas =
     ratio > 1.2
@@ -73,16 +84,20 @@ async function processCharRefImage(filePath: string): Promise<string> {
   return png.toString('base64')
 }
 
-export async function prepareCharRefs(ids?: number[]): Promise<CharacterReferenceOptions[]> {
+export async function prepareCharRefs(
+  ids: number[] | undefined,
+  model: string
+): Promise<CharacterReferenceOptions[]> {
   // ids 지정 시 그 캐릭레퍼들(enabled 무시 — 출연 예약), 미지정 시 enabled 항목
   const rows = ids ? charRefRowsByIds(ids) : enabledCharRefRows()
   const result: CharacterReferenceOptions[] = []
   for (const row of rows) {
+    if (!isV5Model(model) && row.refType === 'costume') continue
     result.push({
       referenceType: row.refType as CharacterReferenceOptions['referenceType'],
       strength: row.strength,
       fidelity: row.fidelity,
-      imageBase64: await processCharRefImage(row.filePath)
+      imageBase64: await processCharRefImage(row.filePath, model)
     })
   }
   return result

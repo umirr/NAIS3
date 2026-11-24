@@ -12,6 +12,7 @@ import {
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CharRefItem, CharRefType, VibeItem } from '@shared/types'
+import { isV5Model } from '@shared/nai-models'
 import { useGenerationStore } from '../stores/generation-store'
 import { cn } from '../lib/utils'
 import { useT } from '../lib/i18n'
@@ -35,6 +36,7 @@ import { Switch } from './ui/switch'
 export function RefOverlay({ kind }: { kind: 'vibe' | 'charref' }): React.JSX.Element {
   const t = useT()
   const model = useGenerationStore((s) => s.request.model)
+  const source = useGenerationStore((s) => s.source)
   const store = refsStoreFor(kind)
   const setOverlayOpen = store((s) => s.setOverlayOpen)
   const folders = store((s) => s.folders)
@@ -249,7 +251,7 @@ export function RefOverlay({ kind }: { kind: 'vibe' | 'charref' }): React.JSX.El
         {kind === 'vibe' ? (
           <VibeParams item={item as VibeItem} model={model} update={update} />
         ) : (
-          <CharRefParams item={item as CharRefItem} update={update} />
+          <CharRefParams item={item as CharRefItem} model={model} update={update} />
         )}
       </div>
     )
@@ -277,6 +279,11 @@ export function RefOverlay({ kind }: { kind: 'vibe' | 'charref' }): React.JSX.El
         )}
       </div>
 
+      {kind === 'charref' &&
+        isV5Model(model) &&
+        (source?.maskBase64 || model.includes('inpainting')) && (
+          <p className="text-[12px] text-muted">{t('ui.v5ReferenceInpaintingUnsupported')}</p>
+        )}
       <div className="flex items-center gap-1.5">
         <div className="relative flex-1">
           <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-faint" />
@@ -401,6 +408,7 @@ export function RefOverlay({ kind }: { kind: 'vibe' | 'charref' }): React.JSX.El
       {bulkParamsOpen && (
         <BulkParamsDialog
           kind={kind}
+          model={model}
           count={selected.size}
           onApply={(patch) => {
             for (const id of selected) update(id, patch)
@@ -427,11 +435,13 @@ export function RefOverlay({ kind }: { kind: 'vibe' | 'charref' }): React.JSX.El
 /** 선택 항목 파라미터 일괄 적용 — vibe: 강도/정보, charref: 타입/강도/충실도 */
 function BulkParamsDialog({
   kind,
+  model,
   count,
   onApply,
   onClose
 }: {
   kind: 'vibe' | 'charref'
+  model: string
   count: number
   onApply: (patch: Record<string, unknown>) => void
   onClose: () => void
@@ -450,51 +460,46 @@ function BulkParamsDialog({
           {t('ui.appliesTheValuesBelowToValueSelectedItems', count)}
         </p>
         <div className="flex flex-col gap-2.5">
-          {kind === 'charref' && (
-            <ParamRow label={t('ui.type')}>
-              <Select value={refType} onValueChange={(v) => setRefType(v as CharRefType)}>
-                <SelectTrigger className="h-7 flex-1 text-[12px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CHARREF_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </ParamRow>
-          )}
-          <ParamRow label={t('ui.strengthValue', strength.toFixed(2))}>
-            <Slider
-              min={0}
-              max={1}
-              step={0.05}
-              value={[strength]}
-              onValueChange={([v]) => setStrength(Math.round(v * 100) / 100)}
+          {kind === 'charref' ? (
+            <CharRefParams
+              model={model}
+              item={{
+                id: 0,
+                name: '',
+                thumbnail: '',
+                enabled: true,
+                folderId: null,
+                refType,
+                strength,
+                fidelity
+              }}
+              update={(_id, patch) => {
+                if (patch.refType !== undefined) setRefType(patch.refType as CharRefType)
+                if (patch.strength !== undefined) setStrength(patch.strength as number)
+                if (patch.fidelity !== undefined) setFidelity(patch.fidelity as number)
+              }}
             />
-          </ParamRow>
-          {kind === 'vibe' ? (
-            <ParamRow label={t('ui.infoValue', info.toFixed(2))}>
-              <Slider
-                min={0}
-                max={1}
-                step={0.05}
-                value={[info]}
-                onValueChange={([v]) => setInfo(Math.round(v * 100) / 100)}
-              />
-            </ParamRow>
           ) : (
-            <ParamRow label={t('ui.fidelityValue', fidelity.toFixed(2))}>
-              <Slider
-                min={0}
-                max={1}
-                step={0.05}
-                value={[fidelity]}
-                onValueChange={([v]) => setFidelity(Math.round(v * 100) / 100)}
-              />
-            </ParamRow>
+            <>
+              <ParamRow label={t('ui.strengthValue', strength.toFixed(2))}>
+                <Slider
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={[strength]}
+                  onValueChange={([v]) => setStrength(Math.round(v * 100) / 100)}
+                />
+              </ParamRow>
+              <ParamRow label={t('ui.infoValue', info.toFixed(2))}>
+                <Slider
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={[info]}
+                  onValueChange={([v]) => setInfo(Math.round(v * 100) / 100)}
+                />
+              </ParamRow>
+            </>
           )}
         </div>
         <div className="mt-4 flex justify-end gap-2">
@@ -507,7 +512,7 @@ function BulkParamsDialog({
               onApply(
                 kind === 'vibe'
                   ? { strength, infoExtracted: info }
-                  : { refType, strength, fidelity }
+                  : { refType, strength, ...(isV5Model(model) ? {} : { fidelity }) }
               )
             }
           >
@@ -571,19 +576,29 @@ function VibeParams({
   )
 }
 
-function CharRefParams({
+export function CharRefParams({
   item,
+  model,
   update
 }: {
   item: CharRefItem
+  model: string
   update: (id: number, patch: Record<string, unknown>) => void
 }): React.JSX.Element {
   const t = useT()
+  const v5 = isV5Model(model)
+  const baseType =
+    item.refType === 'character_mainoutfit'
+      ? 'character'
+      : item.refType === 'character&style_anyoutfit'
+        ? 'character&style'
+        : item.refType
+  const sameOutfit = item.refType === 'character_mainoutfit' || item.refType === 'character&style'
   return (
     <div className="flex flex-col gap-1.5">
       <ParamRow label={t('ui.type')}>
         <Select
-          value={item.refType}
+          value={baseType}
           onValueChange={(v) => update(item.id, { refType: v as CharRefType })}
         >
           <SelectTrigger className="h-7 flex-1 text-[12px]">
@@ -598,24 +613,46 @@ function CharRefParams({
           </SelectContent>
         </Select>
       </ParamRow>
-      <ParamRow label={t('ui.strengthValue', item.strength.toFixed(2))}>
+      {v5 && (baseType === 'character' || baseType === 'character&style') && (
+        <ParamRow label={t('ui.referencePreferSameOutfit')}>
+          <Switch
+            aria-label={t('ui.referencePreferSameOutfit')}
+            checked={sameOutfit}
+            onCheckedChange={(checked) =>
+              update(item.id, {
+                refType:
+                  baseType === 'character'
+                    ? checked
+                      ? 'character_mainoutfit'
+                      : 'character'
+                    : checked
+                      ? 'character&style'
+                      : 'character&style_anyoutfit'
+              })
+            }
+          />
+        </ParamRow>
+      )}
+      <ParamRow label={t('ui.strengthValue', Math.min(v5 ? 5 : 1, item.strength).toFixed(2))}>
         <Slider
           min={0}
-          max={1}
+          max={v5 ? 5 : 1}
           step={0.05}
-          value={[item.strength]}
+          value={[Math.min(v5 ? 5 : 1, item.strength)]}
           onValueChange={([v]) => update(item.id, { strength: Math.round(v * 100) / 100 })}
         />
       </ParamRow>
-      <ParamRow label={t('ui.fidelityValue', item.fidelity.toFixed(2))}>
-        <Slider
-          min={0}
-          max={1}
-          step={0.05}
-          value={[item.fidelity]}
-          onValueChange={([v]) => update(item.id, { fidelity: Math.round(v * 100) / 100 })}
-        />
-      </ParamRow>
+      {!v5 && (
+        <ParamRow label={t('ui.fidelityValue', item.fidelity.toFixed(2))}>
+          <Slider
+            min={0}
+            max={1}
+            step={0.05}
+            value={[item.fidelity]}
+            onValueChange={([v]) => update(item.id, { fidelity: Math.round(v * 100) / 100 })}
+          />
+        </ParamRow>
+      )}
     </div>
   )
 }

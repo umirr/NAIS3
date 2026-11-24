@@ -8,7 +8,7 @@ import {
   type AnlasCharge,
   type AnlasGuardSettings
 } from '../../shared/anlas-guard'
-import { inpaintingModelFor, modelCapabilities } from '../../shared/nai-models'
+import { inpaintingModelFor, isV5Model, modelCapabilities } from '../../shared/nai-models'
 import { snapNaiResolution } from '../../shared/nai-resolution'
 import type { GenerationRequest } from '../../shared/types'
 import { getSetting } from '../db/settings'
@@ -49,7 +49,7 @@ export function requestCharge(
   balance: NaiAccountBalance,
   encoded: Set<string> = new Set()
 ): AnlasCharge {
-  const capabilities = modelCapabilities(request.model)
+  const capabilities = modelCapabilities(request.model, Boolean(request.source?.maskBase64))
   const vibeRows = capabilities.vibes
     ? request.vibeIds
       ? vibeRowsByIds(request.vibeIds)
@@ -64,7 +64,9 @@ export function requestCharge(
     unencodedVibes++
   }
   const charRefCount = capabilities.characterReferences
-    ? (request.charRefIds ? charRefRowsByIds(request.charRefIds) : enabledCharRefRows()).length
+    ? (request.charRefIds ? charRefRowsByIds(request.charRefIds) : enabledCharRefRows()).filter(
+        (r) => isV5Model(request.model) || r.refType !== 'costume'
+      ).length
     : 0
   const source = request.source
   const size = source

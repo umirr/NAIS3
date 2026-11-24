@@ -1,4 +1,4 @@
-import type { GenerationRequest } from '../../shared/types'
+import type { CharRefType, GenerationRequest } from '../../shared/types'
 
 /**
  * NAI 웹과 바이트 단위로 동일한 payload를 만드는 것이 이 모듈의 존재 이유다 (P1).
@@ -106,7 +106,7 @@ export interface I2iOptions {
  */
 export interface CharacterReferenceOptions {
   /** 실캡처는 character&style. costume/delta는 웹 번들 enum에서 확인된 신규 타입 */
-  referenceType: 'character' | 'style' | 'character&style' | 'costume' | 'delta'
+  referenceType: CharRefType
   strength: number
   fidelity: number
   cacheSecretKey?: string
@@ -175,7 +175,23 @@ export function buildGenerateImagePayload(
       characterPrompts: req.characterPrompts.map((c) => ({ ...c, negativePrompt: '' }))
     }
   }
-  const capabilities = modelCapabilities(req.model)
+  const capabilities = modelCapabilities(
+    req.model,
+    Boolean(opts.i2i?.maskBase64 || req.source?.maskBase64)
+  )
+  // Match the official client: V5 fixes fidelity at 1; V4.5 skips outfit-only refs.
+  const characterReferences = (opts.characterReferences ?? [])
+    .filter((r) => v5 || r.referenceType !== 'costume')
+    .map((r) => ({
+      ...r,
+      strength: Math.min(v5 ? 5 : 1, Math.max(0, r.strength)),
+      referenceType:
+        !v5 && r.referenceType === 'character_mainoutfit'
+          ? 'character'
+          : !v5 && r.referenceType === 'character&style_anyoutfit'
+            ? 'character&style'
+            : r.referenceType
+    }))
   const transparent = v5 && (opts.transparentBackground ?? req.transparentBackground ?? false)
   const userPrompt = removeComments(req.prompt)
   const qualityPrompt = mergeQualityTags(userPrompt, req.qualityToggle)
@@ -305,27 +321,27 @@ export function buildGenerateImagePayload(
         center: center(c),
         enabled: true
       })),
-      ...(capabilities.characterReferences && opts.characterReferences?.length
+      ...(capabilities.characterReferences && characterReferences.length
         ? {
-            director_reference_descriptions: opts.characterReferences.map((r) => ({
+            director_reference_descriptions: characterReferences.map((r) => ({
               caption: { base_caption: r.referenceType, char_captions: [] },
               legacy_uc: false
             })),
-            director_reference_information_extracted: opts.characterReferences.map(() => 1),
-            director_reference_strength_values: opts.characterReferences.map((r) => r.strength),
-            director_reference_secondary_strength_values: opts.characterReferences.map(
-              (r) => 1 - r.fidelity
+            director_reference_information_extracted: characterReferences.map(() => 1),
+            director_reference_strength_values: characterReferences.map((r) => r.strength),
+            director_reference_secondary_strength_values: characterReferences.map((r) =>
+              v5 ? 0 : 1 - r.fidelity
             ),
-            ...(opts.characterReferences.some((r) => r.cacheSecretKey)
+            ...(characterReferences.some((r) => r.cacheSecretKey)
               ? {
-                  director_reference_images_cached: opts.characterReferences
+                  director_reference_images_cached: characterReferences
                     .filter((r) => r.cacheSecretKey)
                     .map((r) => ({ cache_secret_key: r.cacheSecretKey }))
                 }
               : {}),
-            ...(opts.characterReferences.some((r) => r.imageBase64)
+            ...(characterReferences.some((r) => r.imageBase64)
               ? {
-                  director_reference_images: opts.characterReferences
+                  director_reference_images: characterReferences
                     .filter((r) => r.imageBase64)
                     .map((r) => r.imageBase64)
                 }

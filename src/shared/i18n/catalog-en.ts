@@ -366,6 +366,8 @@ export const EN = {
     'Not encoded for current model (2 Anlas on generate)',
   'ui.nameOptional': 'Name (optional)',
   'ui.vibeTransfer': 'Vibe Transfer',
+  'ui.referencePreferSameOutfit': 'Prefer same outfit',
+  'ui.v5ReferenceInpaintingUnsupported': 'References are not applied to V5 inpainting.',
   'ui.characterReference': 'Character Reference',
   'ui.search': 'Search',
   'ui.parameters': 'Parameters',

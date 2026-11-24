@@ -291,12 +291,18 @@ export function Titlebar(): React.JSX.Element {
   const source = useGenerationStore((s) => s.source)
   const batchCount = useGenerationStore((s) => s.batchCount)
   const tier = useGenerationStore((s) => s.subscriptionTier)
-  const enabledCrefs = useCharRefsStore((s) => s.items.filter((c) => c.enabled).length)
+  const enabledCrefs = useCharRefsStore(
+    (s) =>
+      s.items.filter(
+        (c) =>
+          c.enabled && (request.model.startsWith('nai-diffusion-5-') || c.refType !== 'costume')
+      ).length
+  )
   const unencodedVibes = useVibesStore(
     (s) => s.items.filter((v) => v.enabled && !v.encodedModels?.includes(request.model)).length
   )
   const enabledVibes = useVibesStore((s) => s.items.filter((v) => v.enabled).length)
-  const capabilities = modelCapabilities(request.model)
+  const capabilities = modelCapabilities(request.model, Boolean(source?.maskBase64))
   const estimateModel = source?.maskBase64 ? inpaintingModelFor(request.model) : request.model
   const estimateSize = source
     ? snapNaiResolution(source.width, source.height)

@@ -224,13 +224,13 @@ const startup = app.whenReady().then(async () => {
 
     // 바이브/캐릭레퍼 준비 — 요청이 id를 지정하면(출연 예약) 그것으로, 아니면 DB enabled 항목
     // (바이브는 필요 시 인코딩 — 2 Anlas, 캐시됨)
-    const capabilities = modelCapabilities(request.model)
+    const capabilities = modelCapabilities(request.model, Boolean(request.source?.maskBase64))
     const { vibes, newlyEncoded } = capabilities.vibes
       ? await prepareVibes(token, request.model, request.vibeIds)
       : { vibes: [], newlyEncoded: [] }
     if (newlyEncoded.length) broadcast('vibes:encoded', {}) // 카드 인코딩 표시 갱신
     const characterReferences = capabilities.characterReferences
-      ? await prepareCharRefs(request.charRefIds)
+      ? await prepareCharRefs(request.charRefIds, request.model)
       : []
 
     let source = request.source

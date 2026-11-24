@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
     encoded: string | null
     encodedIe: number | null
   }[],
+  charRefs: [] as { id: number; refType: string }[],
   spentToday: 0,
   logged: [] as [number, string | undefined][],
   setActive: vi.fn(),
@@ -35,8 +36,8 @@ vi.mock('../src/main/i18n', () => ({
 vi.mock('../src/main/refs/repo', () => ({
   enabledVibeRows: () => state.vibes,
   vibeRowsByIds: (ids: number[]) => state.vibes.filter((row) => ids.includes(row.id)),
-  enabledCharRefRows: () => [],
-  charRefRowsByIds: () => []
+  enabledCharRefRows: () => state.charRefs,
+  charRefRowsByIds: (ids: number[]) => state.charRefs.filter((r) => ids.includes(r.id))
 }))
 vi.mock('../src/main/nai/anlas-log', () => ({
   anlasUsage: () => ({ today: state.spentToday, week: state.spentToday }),
@@ -46,7 +47,7 @@ vi.mock('../src/main/nai/client', () => ({
   fetchAnlasBalance: state.fetchBalance
 }))
 
-const { AnlasGuardError, anlasGuardBlockForQueue, enforceGenerationGuard } =
+const { requestCharge, AnlasGuardError, anlasGuardBlockForQueue, enforceGenerationGuard } =
   await import('../src/main/nai/anlas-guard')
 
 const OPUS: NaiAccountBalance = { anlas: 1000, tier: 'opus' }
@@ -76,6 +77,7 @@ describe('보내기 직전 Anlas 가드 (메인 프로세스)', () => {
   beforeEach(() => {
     state.settings.clear()
     state.vibes = []
+    state.charRefs = []
     state.spentToday = 0
     state.logged = []
     state.setActive.mockClear()
@@ -144,4 +146,24 @@ describe('보내기 직전 Anlas 가드 (메인 프로세스)', () => {
     state.settings.set('nai_auto_switch', '0')
     expect(await anlasGuardBlockForQueue([V5])).toContain('V5 게이지 소진 또는 확인 실패')
   })
+})
+
+it('V5 references are charged and blocked by the paid guard; masked references are excluded', async () => {
+  state.charRefs = [
+    { id: 7, refType: 'costume' },
+    { id: 8, refType: 'character' }
+  ]
+  const balance = balances['token-b']
+  expect(requestCharge(V5, balance).cost).toBe(10)
+  expect(requestCharge({ ...V5, charRefIds: [7] }, balance).cost).toBe(5)
+  expect(requestCharge({ ...V5, charRefIds: [] }, balance).cost).toBe(0)
+  expect(
+    requestCharge(
+      { ...V5, source: { imageBase64: 'x', maskBase64: 'm', strength: 1, noise: 0 } },
+      balance
+    ).cost
+  ).toBe(0)
+  expect(requestCharge(FREE, balance).cost).toBe(5)
+  state.settings.set('anlas_guard_block_paid', '1')
+  await expect(enforceGenerationGuard(V5, accounts[1], balance)).rejects.toThrow('레퍼런스')
 })

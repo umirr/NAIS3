@@ -360,6 +360,8 @@ export const KO = {
   'ui.notEncodedForCurrentModel2AnlasOnGenerate': '현재 모델 미인코딩 (생성 시 2 Anlas)',
   'ui.nameOptional': '이름 (선택)',
   'ui.vibeTransfer': '바이브 트랜스퍼',
+  'ui.referencePreferSameOutfit': '같은 의상 우선',
+  'ui.v5ReferenceInpaintingUnsupported': 'V5 인페인팅에는 레퍼런스가 적용되지 않습니다.',
   'ui.characterReference': '캐릭터 레퍼런스',
   'ui.search': '검색',
   'ui.parameters': '파라미터',
