@@ -358,7 +358,7 @@ export function PromptEditor({
         aria-label={ariaLabel}
         className={cn(
           TYPO,
-          'relative block h-full w-full resize-none bg-transparent text-ink outline-none placeholder:text-muted'
+          'relative block h-full w-full resize-none bg-transparent text-transparent outline-none placeholder:text-muted'
         )}
         style={{ caretColor: 'var(--ink)' }}
         spellCheck={false}

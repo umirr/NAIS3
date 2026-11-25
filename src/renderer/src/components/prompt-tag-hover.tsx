@@ -24,11 +24,14 @@ export function PromptTagHover({
     y: number
   } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const popupHovered = useRef(false)
+  const display = (text: string): string => text.replaceAll('\u0336', '\u200b')
   const tags = promptTags(value)
   useEffect(() => {
     const ta = textarea.current
     if (!ta) return
     const sync = (): void => {
+      popupHovered.current = false
       if (mirror.current) {
         mirror.current.scrollTop = ta.scrollTop
         mirror.current.scrollLeft = ta.scrollLeft
@@ -37,7 +40,9 @@ export function PromptTagHover({
     }
     const leave = (): void => {
       clearTimeout(timer.current)
-      timer.current = setTimeout(() => setHover(null), 250)
+      timer.current = setTimeout(() => {
+        if (!popupHovered.current) setHover(null)
+      }, 250)
     }
     const move = (event: MouseEvent): void => {
       clearTimeout(timer.current)
@@ -87,38 +92,47 @@ export function PromptTagHover({
       <div
         ref={mirror}
         aria-hidden
-        className={`${typography} pointer-events-none absolute inset-0 overflow-hidden text-transparent`}
+        className={`${typography} pointer-events-none absolute inset-0 overflow-hidden text-ink`}
       >
         {tags.map((tag, i) => (
           <span key={tag.start}>
-            {value.slice(i ? tags[i - 1].end : 0, tag.start)}
+            {display(value.slice(i ? tags[i - 1].end : 0, tag.start))}
             <span
               data-tag-start={tag.start}
               data-tag-end={tag.end}
               style={{
-                background:
-                  hover?.start === tag.start
-                    ? 'color-mix(in srgb, var(--ink) 10%, transparent)'
+                background: tag.disabled
+                  ? 'var(--prompt-tag-disabled-bg)'
+                  : hover?.start === tag.start
+                    ? 'var(--prompt-tag-hover-bg)'
                     : undefined,
+                color: tag.disabled ? 'var(--prompt-tag-disabled-ink)' : undefined,
                 boxDecorationBreak: 'clone'
               }}
             >
-              {value.slice(tag.start, tag.end)}
+              {display(value.slice(tag.start, tag.end))}
             </span>
           </span>
         ))}
-        {value.slice(tags.length ? tags[tags.length - 1].end : 0)}
+        {display(value.slice(tags.length ? tags[tags.length - 1].end : 0))}
       </div>
       {hover &&
         createPortal(
           <button
             className="fixed z-50 rounded border border-line bg-surface px-3 py-1.5 text-[12px] text-ink shadow-lg"
             style={{ left: hover.x, top: hover.y }}
-            onMouseEnter={() => clearTimeout(timer.current)}
-            onMouseLeave={() => setHover(null)}
+            onMouseEnter={() => {
+              popupHovered.current = true
+              clearTimeout(timer.current)
+            }}
+            onMouseLeave={() => {
+              popupHovered.current = false
+              setHover(null)
+            }}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               onValueChange(togglePromptTag(value, hover.start, hover.end))
+              popupHovered.current = false
               setHover(null)
               textarea.current?.focus()
             }}
