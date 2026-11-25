@@ -36,30 +36,34 @@ export function PromptTagHover({
       setHover(null)
     }
     const leave = (): void => {
+      clearTimeout(timer.current)
       timer.current = setTimeout(() => setHover(null), 250)
     }
     const move = (event: MouseEvent): void => {
       clearTimeout(timer.current)
       const spans = mirror.current?.querySelectorAll<HTMLElement>('[data-tag-start]') ?? []
       for (const span of spans) {
-        if (
-          Array.from(span.getClientRects()).some(
-            (r) =>
-              event.clientX >= r.left &&
-              event.clientX <= r.right &&
-              event.clientY >= r.top &&
-              event.clientY <= r.bottom
-          )
-        ) {
+        const rect = Array.from(span.getClientRects()).find(
+          (r) =>
+            event.clientX >= r.left &&
+            event.clientX <= r.right &&
+            event.clientY >= r.top &&
+            event.clientY <= r.bottom
+        )
+        if (rect) {
           const start = Number(span.dataset.tagStart),
             end = Number(span.dataset.tagEnd)
-          setHover({
-            start,
-            end,
-            disabled: value.slice(start, end).includes('\u0336'),
-            x: Math.max(8, Math.min(event.clientX, window.innerWidth - 160)),
-            y: Math.max(8, event.clientY - 42)
-          })
+          setHover((current) =>
+            current?.start === start && current.end === end
+              ? current
+              : {
+                  start,
+                  end,
+                  disabled: value.slice(start, end).includes('\u0336'),
+                  x: Math.max(8, Math.min(rect.left, window.innerWidth - 160)),
+                  y: Math.max(8, rect.top - 36)
+                }
+          )
           return
         }
       }
