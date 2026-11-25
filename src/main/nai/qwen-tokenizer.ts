@@ -18,6 +18,7 @@ interface PendingRequest {
 let worker: Worker | null = null
 let nextRequestId = 1
 let idleTimer: NodeJS.Timeout | null = null
+let disposed = false
 const pending = new Map<number, PendingRequest>()
 
 function clearIdleTimer(): void {
@@ -51,7 +52,6 @@ function getWorker(): Worker {
   }
   const created = new Worker(workerPath, { workerData })
   worker = created
-  created.unref()
 
   created.on('message', (response: QwenTokenizerResponse) => {
     const request = pending.get(response.id)
@@ -76,10 +76,22 @@ function getWorker(): Worker {
     if (code !== 0) rejectPending(new Error(`Qwen tokenizer worker exited with code ${code}`))
   })
 
+  // Adding a message listener refs the MessagePort again. Unref after listeners.
+  created.unref()
   return created
 }
 
+export function disposeQwenTokenizer(): void {
+  disposed = true
+  clearIdleTimer()
+  const current = worker
+  worker = null
+  rejectPending(new Error('Application is shutting down'))
+  if (current) void current.terminate()
+}
+
 export function countQwenTokens(texts: string[]): Promise<number[]> {
+  if (disposed) return Promise.reject(new Error('Application is shutting down'))
   if (texts.length === 0) return Promise.resolve([])
   clearIdleTimer()
 

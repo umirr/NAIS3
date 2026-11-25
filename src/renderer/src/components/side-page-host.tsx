@@ -6,14 +6,7 @@ import {
   type Transition
 } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import {
-  behind,
-  edgeShadow,
-  FRONT,
-  PAGE_SWAP,
-  PAGE_TURN,
-  RECEDE_SHIFT
-} from '../lib/page-turn'
+import { behind, edgeShadow, FRONT, PAGE_SWAP, PAGE_TURN, RECEDE_SHIFT } from '../lib/page-turn'
 import { useSidePageStore, type SidePage } from '../stores/side-page-store'
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'

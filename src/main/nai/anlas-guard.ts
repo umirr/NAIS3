@@ -8,12 +8,13 @@ import {
   type AnlasCharge,
   type AnlasGuardSettings
 } from '../../shared/anlas-guard'
-import { inpaintingModelFor, isV5Model, modelCapabilities } from '../../shared/nai-models'
+import { inpaintingModelFor, modelCapabilities } from '../../shared/nai-models'
 import { snapNaiResolution } from '../../shared/nai-resolution'
-import type { GenerationRequest } from '../../shared/types'
+import type { CharRefType, GenerationRequest } from '../../shared/types'
 import { getSetting } from '../db/settings'
 import { t } from '../i18n'
 import { charRefRowsByIds, enabledCharRefRows, enabledVibeRows, vibeRowsByIds } from '../refs/repo'
+import { referencesSentFor, sentReferenceCount } from '../../shared/precise-reference'
 import { getVibeEncoding } from '../refs/vibe-encoding-cache'
 import {
   isOpusUsageExhausted,
@@ -49,7 +50,7 @@ export function requestCharge(
   balance: NaiAccountBalance,
   encoded: Set<string> = new Set()
 ): AnlasCharge {
-  const capabilities = modelCapabilities(request.model, Boolean(request.source?.maskBase64))
+  const capabilities = modelCapabilities(request.model)
   const vibeRows = capabilities.vibes
     ? request.vibeIds
       ? vibeRowsByIds(request.vibeIds)
@@ -63,11 +64,6 @@ export function requestCharge(
     encoded.add(key)
     unencodedVibes++
   }
-  const charRefCount = capabilities.characterReferences
-    ? (request.charRefIds ? charRefRowsByIds(request.charRefIds) : enabledCharRefRows()).filter(
-        (r) => isV5Model(request.model) || r.refType !== 'costume'
-      ).length
-    : 0
   const source = request.source
   const size = source
     ? snapNaiResolution(request.width, request.height)
@@ -76,6 +72,17 @@ export function requestCharge(
     source?.maskBase64 && !request.model.includes('inpainting')
       ? inpaintingModelFor(request.model)
       : request.model
+  // 생성 파이프라인과 같이, 보낼 모델 기준으로 실제 전송될 레퍼런스만 센다
+  const hasMask = Boolean(source?.maskBase64)
+  const charRefCount = referencesSentFor(model, hasMask)
+    ? sentReferenceCount(
+        (request.charRefIds ? charRefRowsByIds(request.charRefIds) : enabledCharRefRows()).map(
+          (row) => row.refType as CharRefType
+        ),
+        model,
+        hasMask
+      )
+    : 0
   return generationCharge(
     {
       model,

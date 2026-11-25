@@ -31,14 +31,30 @@ describe('NAI 모델별 동작', () => {
     })
   })
 
-  it('V5는 정밀 레퍼런스를 지원하고 바이브·Variety+는 지원하지 않는다', () => {
+  it('V5는 바이브·Variety+를 지원하지 않고, 정밀 레퍼런스는 Outfit·강도 5까지 지원한다', () => {
     expect(modelCapabilities('nai-diffusion-5-curated')).toMatchObject({
       vibes: false,
       characterReferences: true,
+      characterReferenceInpainting: false,
+      outfitReferences: true,
+      characterReferenceFidelity: false,
+      characterReferenceStrengthMax: 5,
+      characterReferenceImages: 'bucket',
       variety: false,
       noiseScheduleSelection: false,
       transparency: true,
       maxCharacters: 32
+    })
+  })
+
+  it('V4.5 정밀 레퍼런스는 Fidelity·고정 캔버스를 쓰고 Outfit은 없다', () => {
+    expect(modelCapabilities('nai-diffusion-4-5-full')).toMatchObject({
+      characterReferences: true,
+      characterReferenceInpainting: true,
+      outfitReferences: false,
+      characterReferenceFidelity: true,
+      characterReferenceStrengthMax: 1,
+      characterReferenceImages: 'canvas'
     })
   })
 
@@ -91,12 +107,3 @@ describe('V5 Full Effort 토글 (Medium/High)', () => {
     expect(effectiveSteps('nai-diffusion-5-full', 28)).toBe(28)
   })
 })
-
-it.each(['nai-diffusion-5-curated', 'nai-diffusion-5-full', 'nai-diffusion-5-full-medium'])(
-  '%s supports refs except inpainting',
-  (model) => {
-    expect(modelCapabilities(model).characterReferences).toBe(true)
-    expect(modelCapabilities(model, true).characterReferences).toBe(false)
-    expect(modelCapabilities(model + '-inpainting').characterReferences).toBe(false)
-  }
-)

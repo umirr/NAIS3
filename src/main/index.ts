@@ -34,8 +34,11 @@ import {
   requestUsesV5Usage
 } from './nai/account-router'
 import { enforceGenerationGuard } from './nai/anlas-guard'
+import { disposeTagSearch } from './tags'
+import { disposeQwenTokenizer } from './nai/qwen-tokenizer'
 import { localPromptMetadata } from './nai/payload'
 import { prepareCharRefs, prepareVibes } from './refs/prepare'
+import { referencesSentFor } from '../shared/precise-reference'
 import { GenerationQueue } from './queue/generation-queue'
 import { getPresetName, getScene } from './scenes/repo'
 
@@ -224,13 +227,20 @@ const startup = app.whenReady().then(async () => {
 
     // 바이브/캐릭레퍼 준비 — 요청이 id를 지정하면(출연 예약) 그것으로, 아니면 DB enabled 항목
     // (바이브는 필요 시 인코딩 — 2 Anlas, 캐시됨)
-    const capabilities = modelCapabilities(request.model, Boolean(request.source?.maskBase64))
+    const capabilities = modelCapabilities(request.model)
     const { vibes, newlyEncoded } = capabilities.vibes
       ? await prepareVibes(token, request.model, request.vibeIds)
       : { vibes: [], newlyEncoded: [] }
     if (newlyEncoded.length) broadcast('vibes:encoded', {}) // 카드 인코딩 표시 갱신
-    const characterReferences = capabilities.characterReferences
-      ? await prepareCharRefs(request.charRefIds, request.model)
+    // 캐릭레퍼는 실제로 보낼 모델 기준 — 인페인트면 인페인트 모델로 바뀐 뒤의 규칙
+    // (V5 인페인트는 레퍼런스 미지원, V5 Curated 인페인트는 V4.5 인페인트 모델로 간다)
+    const hasMask = Boolean(request.source?.maskBase64)
+    const referenceModel =
+      hasMask && !request.model.includes('inpainting')
+        ? inpaintingModelFor(request.model)
+        : request.model
+    const characterReferences = referencesSentFor(referenceModel, hasMask)
+      ? await prepareCharRefs(referenceModel, request.charRefIds)
       : []
 
     let source = request.source
@@ -361,8 +371,9 @@ const startup = app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window, { zoom: true })
   })
 
-  // mac dock 아이콘 (dev 미리보기용 — 패키징 앱은 icns 사용)
-  if (process.platform === 'darwin' && app.dock) app.dock.setIcon(icon)
+  // mac dock 아이콘은 개발 실행에서만 바꾼다. 패키징 앱이 PNG로 덮으면 번들의 Liquid Glass 아이콘(Assets.car)이
+  // 평면 그림으로 바뀌어 버린다
+  if (process.platform === 'darwin' && !app.isPackaged && app.dock) app.dock.setIcon(icon)
 
   createWindow()
   setupUpdater() // GitHub release 자동 업데이트 확인 (패키징된 앱에서만 실제 동작)
@@ -380,7 +391,9 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('quit', () => {
+app.on('will-quit', () => {
+  disposeQwenTokenizer()
+  disposeTagSearch()
   closeDb()
 })
 

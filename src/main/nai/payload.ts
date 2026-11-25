@@ -43,6 +43,11 @@ import {
   modelCapabilities
 } from '../../shared/nai-models'
 import { applyAutoText } from '../../shared/nai-auto-text'
+import {
+  clampReferenceStrength,
+  referencesSentFor,
+  referenceTypeForModel
+} from '../../shared/precise-reference'
 
 /**
  * Variety+(skip_cfg_above_sigma) 값.
@@ -101,11 +106,13 @@ export interface I2iOptions {
  * 캐릭터 레퍼런스 (실캡처 확정):
  * - secondary_strength_values = 1 − fidelity (fidelity 1 → 0)
  * - information_extracted는 항상 1
- * - descriptions.caption.base_caption = 'character' | 'character&style' (+ legacy_uc: false)
+ * - descriptions.caption.base_caption = 레퍼런스 타입 (+ legacy_uc: false)
  * - 이미지: 웹은 director_reference_images_cached({cache_secret_key}), 서드파티는 base64 배열
+ *
+ * V5 (웹 번들 2026-11-25 확인): Fidelity 슬라이더가 없어 fidelity 1(secondary 0)로 보낸다.
+ * 모델별 타입 변환·제외(Outfit 미지원 모델, V5 인페인트)는 precise-reference.ts 규칙을 따른다.
  */
 export interface CharacterReferenceOptions {
-  /** 실캡처는 character&style. costume/delta는 웹 번들 enum에서 확인된 신규 타입 */
   referenceType: CharRefType
   strength: number
   fidelity: number
@@ -175,23 +182,17 @@ export function buildGenerateImagePayload(
       characterPrompts: req.characterPrompts.map((c) => ({ ...c, negativePrompt: '' }))
     }
   }
-  const capabilities = modelCapabilities(
-    req.model,
-    Boolean(opts.i2i?.maskBase64 || req.source?.maskBase64)
-  )
-  // Match the official client: V5 fixes fidelity at 1; V4.5 skips outfit-only refs.
-  const characterReferences = (opts.characterReferences ?? [])
-    .filter((r) => v5 || r.referenceType !== 'costume')
-    .map((r) => ({
-      ...r,
-      strength: Math.min(v5 ? 5 : 1, Math.max(0, r.strength)),
-      referenceType:
-        !v5 && r.referenceType === 'character_mainoutfit'
-          ? 'character'
-          : !v5 && r.referenceType === 'character&style_anyoutfit'
-            ? 'character&style'
-            : r.referenceType
-    }))
+  const capabilities = modelCapabilities(req.model)
+  const characterReferences = referencesSentFor(req.model, Boolean(opts.i2i?.maskBase64))
+    ? (opts.characterReferences ?? []).flatMap((r) => {
+        const referenceType = referenceTypeForModel(r.referenceType, req.model)
+        if (!referenceType) return []
+        const fidelity = capabilities.characterReferenceFidelity ? r.fidelity : 1
+        // V5에서 올린 강도(최대 5)가 V4.5(최대 1)로 그대로 가지 않게 모델 상한으로 자른다
+        const strength = clampReferenceStrength(r.strength, req.model)
+        return [{ ...r, referenceType, strength, fidelity }]
+      })
+    : []
   const transparent = v5 && (opts.transparentBackground ?? req.transparentBackground ?? false)
   const userPrompt = removeComments(req.prompt)
   const qualityPrompt = mergeQualityTags(userPrompt, req.qualityToggle)
@@ -321,7 +322,7 @@ export function buildGenerateImagePayload(
         center: center(c),
         enabled: true
       })),
-      ...(capabilities.characterReferences && characterReferences.length
+      ...(characterReferences.length
         ? {
             director_reference_descriptions: characterReferences.map((r) => ({
               caption: { base_caption: r.referenceType, char_captions: [] },
@@ -329,8 +330,8 @@ export function buildGenerateImagePayload(
             })),
             director_reference_information_extracted: characterReferences.map(() => 1),
             director_reference_strength_values: characterReferences.map((r) => r.strength),
-            director_reference_secondary_strength_values: characterReferences.map((r) =>
-              v5 ? 0 : 1 - r.fidelity
+            director_reference_secondary_strength_values: characterReferences.map(
+              (r) => 1 - r.fidelity
             ),
             ...(characterReferences.some((r) => r.cacheSecretKey)
               ? {

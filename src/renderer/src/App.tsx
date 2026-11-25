@@ -18,6 +18,7 @@ import { ArtistTagsDialog } from './components/artist-tags-dialog'
 import { MetadataDialog } from './components/metadata-dialog'
 import { SidePageHost } from './components/side-page-host'
 import { PromptPanel } from './components/prompt-panel'
+import { RecoveryNotice } from './components/recovery-notice'
 import { SceneMode } from './components/scene-mode'
 import { Titlebar } from './components/titlebar'
 import { SettingsDialog } from './components/token-dialog'
@@ -35,14 +36,7 @@ import { bindShortcuts, useShortcutsStore } from './stores/shortcuts-store'
 import { bindUpdateEvents } from './stores/update-store'
 import { bindNavMouse } from './lib/nav-history'
 import { useLanguageStore } from './lib/i18n'
-import {
-  behind,
-  edgeShadow,
-  FRONT,
-  PAGE_SWAP,
-  PAGE_TURN,
-  RECEDE_SHIFT
-} from './lib/page-turn'
+import { behind, edgeShadow, FRONT, PAGE_SWAP, PAGE_TURN, RECEDE_SHIFT } from './lib/page-turn'
 import { cn } from './lib/utils'
 import { useWebSearchKeepAlive } from './lib/websearch-keep-alive'
 import { useLayoutStore } from './stores/layout-store'
@@ -176,6 +170,8 @@ export default function App(): React.JSX.Element {
           </SidePageHost>
         </motion.div>
         <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+        {/* 작업 공간이 비었는데 앱 내부 백업에 데이터가 남았으면 한 번 알린다 */}
+        <RecoveryNotice ready={ready} />
         <TextPromptHost />
         <FragmentEditorDialog />
         <InpaintHost />

@@ -1,4 +1,4 @@
-import type { Transition } from 'motion/react'
+import type { TargetAndTransition, Transition } from 'motion/react'
 
 // 한 장이 다른 장 위를 덮을 때의 연출 — 페이지 넘김(SidePageHost)과 좌우 패널 접기(App)가 같이 쓴다.
 // 덮이는 쪽은 덮어 오는 반대 방향으로 조금 밀리며 작아지고 흐려지고, 덮는 쪽은 가장자리 그림자를 단다
@@ -17,7 +17,7 @@ export const FRONT = {
   transitionEnd: { transform: 'none', willChange: 'auto' }
 }
 /** 덮인 모습 — shift는 밀려나는 거리(자기 폭의 %), 음수면 왼쪽 */
-export const behind = (shift: number) => ({
+export const behind = (shift: number): TargetAndTransition => ({
   transform: `translateX(${shift}%) scale(0.94)`,
   opacity: 0.4,
   willChange: RECEDE_HINT,
