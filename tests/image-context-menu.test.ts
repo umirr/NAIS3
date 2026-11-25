@@ -1,3 +1,6 @@
+vi.mock('../src/renderer/src/components/regenerate-menu-item', () => ({
+  RegenerateMenuItem: () => null
+}))
 // @vitest-environment happy-dom
 import { act, createElement as h, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'

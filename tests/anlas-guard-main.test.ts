@@ -148,7 +148,7 @@ describe('보내기 직전 Anlas 가드 (메인 프로세스)', () => {
   })
 })
 
-it('V5 references are charged and blocked by the paid guard; masked references are excluded', async () => {
+it('V5 references are charged; Full masks exclude refs and Curated fallback uses V4.5 rules', async () => {
   state.charRefs = [
     { id: 7, refType: 'costume' },
     { id: 8, refType: 'character' }
@@ -160,6 +160,16 @@ it('V5 references are charged and blocked by the paid guard; masked references a
   expect(
     requestCharge(
       { ...V5, source: { imageBase64: 'x', maskBase64: 'm', strength: 1, noise: 0 } },
+      balance
+    ).cost
+  ).toBe(5)
+  expect(
+    requestCharge(
+      {
+        ...V5,
+        model: 'nai-diffusion-5-full',
+        source: { imageBase64: 'x', maskBase64: 'm', strength: 1, noise: 0 }
+      },
       balance
     ).cost
   ).toBe(0)

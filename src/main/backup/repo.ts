@@ -1,295 +1,373 @@
 import { randomUUID } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { extname, join } from 'path'
-import { createNaisArchive, readNaisArchive } from './archive'
+import { readNaisArchive, writeNaisArchive } from './archive'
 import { legacyNais3ToBackupDatabase, LEGACY_BACKUP_TABLES } from './legacy'
 import {
   BACKUP_FORMAT_VERSION,
   BACKUP_TABLES,
+  type BackupArchiveSource,
   type BackupDatabaseV1,
   type BackupFile,
   type BackupRow,
-  type BackupTableName
+  type BackupSourceFile,
+  type BackupTableName,
+  type ImportOptions
 } from './types'
 import { getDb } from '../db'
 import { getSetting, setSetting } from '../db/settings'
-import { libraryRoot } from '../images/storage'
-import { sceneEvents } from '../scenes/events'
+import { …82152 tokens truncated… 'ui.upscale': '업스케일',
+  'ui.scaleResolutionByAMultiple': '해상도를 배수로 키움',
+  'ui.defryValue': '약화 {0}',
+  'ui.removeBg': '배경 제거',
+  'ui.makeTheBackgroundTransparentKeepingOnlyTheCharacter': '캐릭터만 남기고 배경을 투명하게',
+  'ui.removeBgFree': '배경 제거 (Hugging Face)',
+  'ui.removeBgFreeDescription': '무료 · 이미지를 외부 Hugging Face Space로 전송',
+  'ui.removeBgFreePrivacyNotice':
+    '이미지가 제3자가 운영하는 공개 Hugging Face Space인 BRIA RMBG 2.0(briaai/BRIA-RMBG-2.0)으로, 실패하면 skytnt/anime-remove-background로 전송됩니다. BRIA RMBG 2.0 모델은 비상업적 용도로만 쓸 수 있는 라이선스(CC BY-NC 4.0)이며, 결과물은 각 Space의 이용 조건을 따릅니다. 공개하고 싶지 않은 이미지에는 쓰지 마세요. Anlas는 들지 않지만 인터넷이 필요하고, 대기열에 따라 시간이 걸릴 수 있습니다.',
+  'ui.freeBgConsentTitle': '이 이미지를 Hugging Face로 보낼까요?',
+  'ui.freeBgConsentConfirm': '업로드하고 배경 제거',
+  'ui.freeBgConnecting': '{0}에 연결하는 중…',
+  'ui.freeBgQueued': '{0} 대기열에서 기다리는 중…',
+  'ui.freeBgQueuedAt': '{0} 대기열에서 기다리는 중… ({1}번째)',
+  'ui.freeBgProcessing': '{0}에서 배경을 지우는 중…',
+  'ui.freeBgUsingFallback': '첫 번째 Space를 쓸 수 없어 예비 Space로 다시 시도합니다',
+  'ui.freeBgRemovalTimeout': '응답 시간 초과 (대기열 혼잡)',
+  'ui.freeBgRemovalFailed':
+    '무료 배경 제거에 실패했습니다. 잠시 후 다시 시도하거나 NovelAI 배경 제거를 사용하세요. ({0})',
+  'ui.lineArt': '라인아트',
+  'ui.extractLineArt': '선화 추출',
+  'ui.sketch': '스케치',
+  'ui.convertToSketchStyle': '스케치풍으로 변환',
+  'ui.colorize': '색칠',
+  'ui.colorLineArtGuidedByPrompt': '선화를 채색 (프롬프트로 유도)',
+  'ui.changeExpression': '표정 변경',
+  'ui.replaceTheFacialExpression': '얼굴 표정을 교체',
+  'ui.declutter.6851509': '이미지 정리',
+  'ui.removeWatermarksAndClutter': '워터마크·잡요소 제거',
+  'ui.declutterKeepBubbles': '정리 (말풍선 유지)',
+  'ui.declutterWhileKeepingSpeechBubbles': '말풍선은 남기고 정리',
+  'ui.directorImg2img': 'Img2Img',
+  'ui.directorGroupAi': 'AI 편집 · Anlas 사용',
+  'ui.directorGroupMain': '메인에서 이어서 작업',
+  'ui.directorGroupLocal': '무료 도구',
+  'ui.directorApply': '적용',
+  'ui.directorOpenInMain': '메인에서 열기',
+  'ui.directorOpenEditor': '편집기 열기',
+  'ui.directorAnalyze': '분석하기',
+  'ui.directorSelectTool': '툴을 골라 주세요 (더블클릭하면 바로 실행)',
+  'ui.directorOpenImageFirst': '먼저 이미지를 열어 주세요',
+  'ui.directorInstantRun': '디렉터 툴 즉시 실행',
+  'ui.directorInstantRunHint': '툴을 한 번 클릭하면 바로 실행 (끄면 고른 뒤 버튼으로 실행)',
+  'ui.back': '뒤로',
+  'ui.forward': '앞으로',
+  'ui.reload': '새로고침',
+  'ui.homeDanbooru': '홈 (Danbooru)',
+  'ui.urlOrTagSearchNonDomainsSearchDanbooruTags':
+    'URL 또는 태그 검색 (도메인이 아니면 단부루 태그로 검색)',
+  'ui.zoomOut': '축소',
+  'ui.resetTo100': '100%로',
+  'ui.zoomIn': '확대',
+  'ui.addQuickLink': '퀵링크 추가',
+  'ui.httpsOrADomain': 'https://... 또는 도메인',
+  'ui.quickLinkName': '퀵링크 이름',
+  'ui.done': '완료',
+  'ui.edit': '편집',
+  'ui.googleTranslate': '구글 번역',
+  'ui.inpaintCanvas': '인페인트 캔버스',
+  'ui.inpaintFitToView': '화면 맞춤',
+  'ui.inpaintMoveView': '화면 이동',
+  'ui.inpaintNavigationHint': '휠: 확대·축소 · 스페이스 + 드래그 / 마우스 가운데 버튼: 화면 이동',
+  'ui.inpaintBrushSize': '브러시 지름',
+  'ui.reset': '초기화',
+  'ui.saved': '저장 완료',
+  'ui.download': '다운로드',
+  'ui.multipleLinesRandomPickPerGenerationWildcard': '여러 줄 — 생성마다 랜덤 선택 (와일드카드)',
+  'ui.singleLineFixedSubstitution': '한 줄 — 고정 치환',
+  'ui.valueLines': '{0}줄',
+  'ui.exportTxt': 'TXT 내보내기',
+  'ui.oneLineOneOptionMultipleLinesPickRandomlyPerGenerationLinesStart779fe71':
+    '한 줄 = 한 옵션 (여러 줄이면 생성마다 랜덤 선택)\n#로 시작하는 줄은 주석',
+  'ui.useAsValueValuePicksSequentially': '<{0}> 로 사용 · <*{0}> 는 순차 선택',
+  'ui.fragmentPrompts': '조각 프롬프트',
+  'ui.resetSequentialCountersNameStartsFromTheFirstLineAgain':
+    '순차 선택 카운터 리셋 (<*이름>을 다시 첫 줄부터)',
+  'ui.sequentialCountersReset': '순차 카운터를 리셋했습니다',
+  'ui.importFragmentsTxtZipWildcardCompatible': '조각 불러오기 (TXT / ZIP · 와일드카드 호환)',
+  'ui.exportAllFragmentsZipShareBackup': '조각 전체 내보내기 (ZIP · 공유/백업)',
+  'ui.exportedValueFragments': '조각 {0}개 내보냄',
+  'ui.addAFragmentOrImportATxtFile': '조각을 추가하거나 TXT를 가져오세요',
+  'ui.inpaintMaskPaintTheAreaToRegenerate': '인페인트 마스크 — 재생성할 영역을 칠하세요',
+  'ui.paint': '칠하기',
+  'ui.imageMetadata': '이미지 메타데이터',
+  'ui.onlyCheckedItemsAreApplied': '— 체크한 항목만 적용',
+  'ui.reading': '읽는 중…',
+  'ui.seed': '시드',
+  'ui.steps': '스텝',
+  'ui.sampler': '샘플러',
+  'ui.schedule': '스케줄',
+  'ui.resolution': '해상도',
+  'ui.qualityTags': '퀄리티 태그',
+  'ui.effort': 'Effort',
+  'ui.effortMedium': 'Medium',
+  'ui.effortHigh': 'High',
+  'ui.effortTooltip': 'Medium은 Anlas와 Opus 사용량을 덜 쓰는 대신 일부 설정을 쓸 수 없습니다.',
+  'ui.effortMediumHint':
+    'Medium은 14스텝·Euler Ancestral·Heavy UC로 고정되고 네거티브와 CFG Rescale을 쓰지 않습니다. High로 돌아가면 기존 설정이 그대로 적용됩니다.',
+  'ui.fixedAtMediumEffort': 'Medium Effort에서는 고정됩니다',
+  'ui.unavailableAtMediumEffort': 'Medium Effort에서는 사용할 수 없습니다',
+  'ui.negativeUnusedAtMediumEffort':
+    'Medium Effort에서는 네거티브가 전송되지 않습니다. 빼고 싶은 요소는 프롬프트에 -3::hat:: 처럼 음수 강조로 적어 주세요.',
+  'ui.ucPreset': 'UC 프리셋',
+  'ui.model': '모델',
+  'ui.characterValue': '캐릭터 {0}',
+  'ui.copyCharacterValuePrompt': '캐릭터 {0} 프롬프트 복사',
+  'ui.copyCharacterValueNegative': '캐릭터 {0} 네거티브 복사',
+  'ui.applyToMain': '메인에 적용',
+  'ui.copyValue': '{0} 복사',
+  'ui.none': '(없음)',
+  'ui.artistsWithASimilarArtStyleKaloscope': '— 그림체가 닮은 작가 추정 (Kaloscope)',
+  'ui.analyzingStyleMayTakeAFewSeconds': '스타일 분석 중… (수 초 걸릴 수 있습니다)',
+  'ui.clickToInclude': '클릭해서 포함',
+  'ui.clickToExclude': '클릭해서 제외',
+  'ui.selectedTags': '선택된 태그',
+  'ui.noTagsSelected': '(선택된 태그 없음)',
+  'ui.artistTagsCopied': '작가 태그가 복사되었습니다',
+  'ui.copy': '복사',
+  'ui.preparingToGenerate': '생성 준비 중…',
+  'ui.generatedImagesWillAppearHere': '생성된 이미지가 여기 표시됩니다',
+  'ui.greetingDawn1': '아직 깨어 계셨네요',
+  'ui.greetingDawn2': '고요한 새벽, 한 장 그려볼까요',
+  'ui.greetingDawn3': '모두 잠든 시간이에요',
+  'ui.greetingDawn4': '새벽 감성, 놓치기 아깝죠',
+  'ui.greetingDawn5': '밤을 새우셨나요?',
+  'ui.greetingDawn6': '조용한 지금이 딱 좋아요',
+  'ui.greetingMorning1': '좋은 아침이에요',
+  'ui.greetingMorning2': '오늘은 무엇을 그려볼까요',
+  'ui.greetingMorning3': '상쾌한 아침이에요',
+  'ui.greetingMorning4': '커피 한 잔과 함께 시작해요',
+  'ui.greetingMorning5': '오늘의 첫 장을 그려볼까요',
+  'ui.greetingMorning6': '아침 햇살처럼 맑은 영감을',
+  'ui.greetingAfternoon1': '좋은 오후예요',
+  'ui.greetingAfternoon2': '나른한 오후, 영감이 필요하신가요',
+  'ui.greetingAfternoon3': '점심은 맛있게 드셨나요?',
+  'ui.greetingAfternoon4': '오후의 한 장, 그려볼까요',
+  'ui.greetingAfternoon5': '차 한 잔의 여유와 함께',
+  'ui.greetingAfternoon6': '오늘도 순조로운가요?',
+  'ui.greetingEvening1': '좋은 저녁이에요',
+  'ui.greetingEvening2': '오늘 하루도 수고하셨어요',
+  'ui.greetingEvening3': '노을빛 영감을 담아볼까요',
+  'ui.greetingEvening4': '저녁은 드셨나요?',
+  'ui.greetingEvening5': '하루의 끝, 그림 한 장 어때요',
+  'ui.greetingEvening6': '이제 나만의 시간이에요',
+  'ui.greetingNight1': '편안한 밤 보내고 계신가요',
+  'ui.greetingNight2': '밤이 깊었네요, 한 장만 더?',
+  'ui.greetingNight3': '별이 예쁜 밤이에요',
+  'ui.greetingNight4': '오늘 밤은 무엇을 그릴까요',
+  'ui.greetingNight5': '조용한 밤, 집중하기 좋은 시간',
+  'ui.greetingNight6': '너무 늦게 주무시진 마세요',
+  'ui.preparing': '준비 중',
+  'ui.seedLockedClickToUnlock': '시드 고정됨 — 클릭하면 해제',
+  'ui.clickToLockThisSeed': '클릭하면 이 시드로 고정',
+  'ui.dropHereToLoadMetadata': '여기 놓으면 메타데이터를 불러옵니다',
+  'ui.reviewPromptSettingsAndApplySelectively': '프롬프트·설정을 확인하고 선택 적용',
+  'ui.valueS': '~{0}초',
+  'ui.almostDone': '곧 완료',
+  'ui.downloadUpdateValueAndInstallAutomatically': '업데이트 {0} 다운로드 후 자동 설치',
+  'ui.downloadingUpdateValue.773cde6': '업데이트 다운로드 중 {0}%',
+  'ui.installingUpdateRestarting': '업데이트 설치 — 재시작 중',
+  'ui.anlasBalanceUpdatesAfterEachGeneration': 'Anlas 잔액 (생성할 때마다 갱신)',
+  'ui.anlasCostOfThisGenerationInclHighResolutionCharacterReferenceUneaa8754e':
+    '이번 생성에 소모될 Anlas (고해상도 · 캐릭터 레퍼런스 · 미인코딩 바이브 포함)',
+  'ui.v5RechargeGaugeDepletedAnlasIsUsedUntilItRecharges':
+    'V5 충전 게이지 소진 — 충전될 때까지 Anlas 사용',
+  'ui.v5OpusRechargeGaugeValue': 'V5 Opus 충전 게이지 · {0}',
+  'ui.togglePromptPanel.6ab7472': '프롬프트 패널 접기/펴기',
+  'ui.toggleHistoryPanel.b5c0fb9': '히스토리 패널 접기/펴기',
+  'ui.minimize': '최소화',
+  'ui.maximize': '최대화',
+  'ui.openInDirectorTools': '디렉터 툴에서 열기',
+  'ui.viewMetadata': '메타데이터 보기',
+  'ui.regenerate': '재생성',
+  'ui.regenerateWithTheSameSettingsAndANewSeed': '이 이미지의 설정 그대로 새 시드로 다시 생성',
+  'ui.cannotRegenerateWhileGenerating': '생성 중에는 재생성할 수 없습니다',
+  'ui.regenerateUnavailableForI2i': 'I2I 결과는 원본 이미지 없이 재생성할 수 없습니다',
+  'ui.regenerateUnavailableForInpaint': '인페인트 결과는 원본 이미지 없이 재생성할 수 없습니다',
+  'ui.regenerateFailed': '재생성을 시작하지 못했습니다 ({0})',
+  'ui.copiedToClipboard': '클립보드에 복사됨',
+  'ui.copyImage': '이미지 복사',
+  'ui.saveAs': '다른 이름으로 저장',
+  'ui.showInFileExplorer': '파일 탐색기에서 보기',
+  'ui.addToLibrary': '라이브러리에 추가',
+  'ui.clearAllHistory': '히스토리 전체 비우기',
+  'ui.clearsValueGenerationRecordsIncludingSceneGalleriesImageFilesInT1cb5e46':
+    '생성 기록 {0}개를 비웁니다 (씬 갤러리 포함). 저장 폴더의 이미지 파일은 삭제되지 않습니다.',
+  'ui.clearAll': '전체 비우기',
+  'ui.clearedValueRecordsFilesPreserved': '기록 {0}개 비움 (파일은 보존)',
+  'ui.history': '히스토리',
+  'ui.nothingYet': '아직 없음',
+  'ui.removeFromHistoryFilePreserved': '기록에서 삭제 (파일은 보존)',
+  'ui.random': '랜덤',
+  'ui.seedLocked': '시드 고정됨',
+  'ui.lockSeed': '시드 고정',
+  'ui.randomSeed': '랜덤 시드',
+  'ui.stepsValue': '스텝 {0}',
+  'ui.noiseSchedule': '노이즈 스케줄',
+  'ui.transparentBackground': '투명 배경',
+  'ui.inpaintMode': '인페인트 모드',
+  'ui.i2iMode': 'I2I 모드',
+  'ui.editMaskAgain': '마스크 다시 편집',
+  'ui.drawAMaskToSwitchToInpaint': '마스크를 그려 인페인트로 전환',
+  'ui.clearSource': '소스 해제',
+  'ui.adjustedToAMultipleOf64WithinThe3MiPixelLimitValueValue':
+    '64 배수·3 Mi 픽셀 제한으로 보정됨 → {0}×{1}',
+  'ui.thisResolutionAlreadyExists': '이미 있는 해상도입니다',
+  'ui.width': '가로',
+  'ui.height': '세로',
+  'ui.addNovelaiAdjustsToValueValue': '추가 (NovelAI 보정: {0}×{1})',
+  'ui.main': '메인',
+  'ui.scrollWheelToBrowseLToSaveToLibrary': '휠 넘기기 · L 라이브러리 저장',
+  'ui.valueClickToTypeAValue': '{0} — 클릭하면 직접 입력',
+  'ui.clickToTypeAValue': '클릭하면 직접 입력',
+  'ui.light': '라이트',
+  'ui.dark': '다크',
+  'ui.followSystemSetting': '시스템 설정 따름',
+  'ui.ok': '확인',
+  'ui.no': '아니오',
+  'ui.valueImagesFailedValue': '{0}장 생성 실패 — {1}',
+  'ui.valueImagesFailedValueDistinctErrors': '{0}장 생성 실패 (사유 {1}종)',
+  'ui.generationFailed': '생성 실패',
+  'ui.tooManyRequestsRetryingAutomaticallyInAMoment': '요청이 몰려 잠시 후 자동으로 재시도합니다',
+  'ui.v5GaugeDepletedSwitchedToValue': 'V5 게이지가 소진되어 {0}으로 전환했습니다',
+  'ui.nextAccount': '다음 계정',
+  'ui.valueImagesAdded': '{0}장 추가됨',
+  'ui.valueImagesExported': '{0}장 내보냄',
+  'ui.exportedValueImagesFromValue': '"{0}" {1}장 내보냄',
+  'ui.valueImagesAddedToStack': '스택에 {0}장 추가됨',
+  'ui.removedFromStack': '스택에서 뺐습니다',
+  'ui.stackValueCreated': '"{0}" 스택 생성됨',
+  'ui.valueImagesAddedToLibrary': '라이브러리에 {0}장 추가됨',
+  'ui.addAsVibeReference': '바이브 트랜스퍼로 추가',
+  'ui.addAsCharacterReference': '캐릭터 레퍼런스로 추가',
+  'ui.valueImagesAddedToVibeTransfer': '바이브 트랜스퍼에 {0}장 추가됨',
+  'ui.valueImagesAddedToCharacterReference': '캐릭터 레퍼런스에 {0}장 추가됨',
+  'ui.valueImagesCouldNotBeAddedAsReferences':
+    '{0}장을 레퍼런스로 추가하지 못했습니다 (PNG·JPEG·WebP만 가능)',
+  'ui.dropHereToAddAsVibeReference': '여기 놓으면 바이브 트랜스퍼로 추가합니다',
+  'ui.dropHereToAddAsCharacterReference': '여기 놓으면 캐릭터 레퍼런스로 추가합니다',
+  'ui.sequentialFragmentCountersReset': '조각 순차 카운터를 리셋했습니다',
+  'ui.emotion': '표정',
+  'ui.declutter.85446fc': '정리+',
+  'ui.nais3DatabaseError': 'NAIS3 데이터베이스 오류',
+  'ui.updatingTheDatabase': '데이터베이스 업데이트 중…',
+  'ui.thisCanTakeAFewMinutesWithManyImagesNais3OpensWhenItIsDone':
+    '이미지가 많으면 몇 분 걸릴 수 있습니다. 끝나면 NAIS3가 열립니다.',
+  'ui.naiTokenIsNotConfigured': 'NAI 토큰이 설정되지 않았습니다',
+  'ui.downloadFailedValue': '다운로드 실패 {0}',
+  'ui.automaticInstallFailedOpeningTheReleasePageValue':
+    '자동 설치 실패 — 릴리즈 페이지를 엽니다 ({0})',
+  'ui.exportData': '데이터 내보내기',
+  'ui.importDataNais3Nais2Backup': '데이터 가져오기 (NAIS3 / NAIS2 백업)',
+  'ui.nais3BackupRestoredValueItems': 'NAIS3 백업 복원 완료 ({0}개 항목)',
+  'ui.valuePresets': '프리셋 {0}',
+  'ui.valueFragments': '조각 {0}',
+  'ui.valueScenes': '씬 {0}',
+  'ui.importedValueFromNais2': 'NAIS2에서 {0} 가져옴',
+  'ui.nothingToImport': '가져올 항목이 없습니다',
+  'ui.unknownBackupFormat': '알 수 없는 백업 형식입니다',
+  'ui.saveImage': '이미지 저장',
+  'ui.chooseSceneSaveFolder': '씬 저장 폴더 선택',
+  'ui.chooseSaveFolder': '저장 폴더 선택',
+  'ui.valueImagesDoneValueFailed': '{0}장 완료 · {1}장 실패',
+  'ui.valueImagesDone': '{0}장 완료',
+  'ui.nais3GenerationComplete': 'NAIS3 생성 완료',
+  'ui.noNaiMetadataFoundInThisImage': '이 이미지에서 NAI 메타데이터를 찾지 못했습니다',
+  'ui.pathNotAllowed': '허용되지 않은 경로',
+  'ui.originalExpiredImageGeneratedWithAutoSaveOff':
+    '원본이 만료되었습니다 (자동저장 꺼짐 상태로 생성된 이미지)',
+  'ui.metadataNotFound': '메타데이터를 찾지 못했습니다',
+  'ui.noInputProvided': '입력이 없습니다',
+  'ui.noArtistTagsFound': '작가 태그를 찾지 못했습니다',
+  'ui.invalidApiToken': '유효하지 않은 API 토큰',
+  'ui.apiErrorValue': 'API 오류: {0}',
+  'ui.generationFailedValueValue': '생성 실패 {0}: {1}',
+  'ui.noStreamingResponse': '스트리밍 응답 없음',
+  'ui.directorToolsFailedValueValue': '디렉터 툴 실패 {0}: {1}',
+  'ui.noImageInDirectorToolsResponse': '디렉터 툴 응답에 이미지가 없음',
+  'ui.upscaleFailedValueValue': '업스케일 실패 {0}: {1}',
+  'ui.noImageInUpscaleResponse': '업스케일 응답에 이미지가 없음',
+  'ui.noImageInZipResponse': 'zip 응답에 이미지가 없음',
+  'ui.invalidStreamMessageLengthValue': '잘못된 스트림 메시지 길이: {0}',
+  'ui.naiStreamErrorValue': 'NAI 스트림 오류: {0}',
+  'ui.noFinalImageReceivedFromStream': '스트림에서 최종 이미지를 받지 못함',
+  'ui.valueCopy': '{0} 복제',
+  'ui.exportScenes': '씬 내보내기',
+  'ui.importScenes': '씬 불러오기',
+  'ui.importFragmentTxt': '조각 TXT 가져오기',
+  'ui.textZip': '텍스트/ZIP',
+  'ui.exportAllFragments': '조각 전체 내보내기',
+  'ui.exportFragment': '조각 내보내기',
+  'ui.text': '텍스트',
+  'ui.addVibeImages': '바이브 이미지 추가',
+  'ui.addReferenceImages': '레퍼런스 이미지 추가',
+  'ui.vibeEncodingFailedValueValue': '바이브 인코딩 실패 {0}: {1}',
+  'ui.chooseCharacterImage': '캐릭터 이미지 선택',
+  'ui.addImagesToLibrary': '라이브러리에 이미지 추가',
+  'ui.chooseExportFolder': '내보낼 폴더 선택',
+  'ui.importedPreset': '가져온 프리셋',
+  'ui.importedScenes': '가져온 씬',
+  'ui.estValueAnlasValue': '예상 {0} Anlas{1}',
+  'ui.t2i': 't2i',
+  'ui.i2i': 'i2i',
+  'ui.inlineRandomSyntax': '<a|b|c>',
+  'ui.queue': '예약',
+  'ui.namedCast': '"{0}" 출연',
+  'ui.adjustQueueForSelectedScenes': '선택한 {0}개 씬의 {1} 예약 {2}{3}',
+  'ui.onboardingWelcomeTitle': 'NAIS3에 오신 것을 환영합니다',
+  'ui.onboardingLanguageTitle': '언어 선택',
+  'ui.onboardingStepOf': '{0} / {1}단계',
+  'ui.onboardingSkip': '건너뛰기',
+  'ui.onboardingSkipAll': '온보딩 생략',
+  'ui.onboardingStart': '시작하기',
+  'ui.onboardingNext': '다음',
+  'ui.onboardingFinish': 'NAIS3 시작하기',
+  'ui.onboardingSettingsLater': '모든 항목은 나중에 설정에서 바꿀 수 있습니다.',
+  'ui.onboardingAccountTitle': 'NovelAI 계정 연결',
+  'ui.onboardingTokenStep1': 'NovelAI에 로그인합니다.',
+  'ui.onboardingTokenStep2':
+    '왼쪽 위 햄버거 버튼(☰)으로 사이드바를 열고 설정(톱니바퀴) → Account → "Get Persistent API Token"을 누릅니다.',
+  'ui.onboardingTokenStep3': 'pst-로 시작하는 토큰을 복사해 아래에 붙여넣습니다.',
+  'ui.onboardingTokenLabel': 'NovelAI API 토큰',
+  'ui.onboardingConnect': '연결',
+  'ui.onboardingTokenPrivacy':
+    '토큰은 이 기기에만 저장되며 NovelAI 요청에만 쓰입니다. 데스크톱 앱에서는 OS 키체인을 쓸 수 있으면 키체인으로 암호화합니다.',
+  'ui.onboardingAccountConnected': '연결됨 — {0}',
+  'ui.onboardingAccountConnectedNoLabel': '연결됨',
+  'ui.onboardingAccountMore': '계정은 설정 → NAI 계정에서 더 추가하거나 바꿀 수 있습니다.',
+  'ui.onboardingImportTitle': '기존 데이터 가져오기',
+  'ui.onboardingImportDone': '데이터를 불러왔습니다.',
+  'ui.onboardingImportOptional':
+    '처음 사용한다면 건너뛰면 됩니다. 설정 → 저장에서 언제든 불러올 수 있습니다.',
+  'ui.onboardingTipsTitle': '알아두면 좋은 것',
+  'ui.onboardingTipCommentTitle': '프롬프트 주석',
+  'ui.onboardingTipComment': '#로 시작하는 줄은 통째로 주석이라 전송되지 않습니다.',
+  'ui.onboardingTipFragmentTitle': '조각(와일드카드)',
+  'ui.onboardingTipFragment': '<이름>으로 넣으면 여러 줄 중 하나가 무작위로 들어갑니다.',
+  'ui.onboardingTipCharacterTitle': '캐릭터 프롬프트',
+  'ui.onboardingTipCharacter':
+    '라이브러리에 저장해 두고 여러 명을 한꺼번에 켤 수 있습니다. 동시 인원은 모델마다 다릅니다.',
+  'ui.onboardingTipTabsTitle': '상단 탭',
+  'ui.onboardingTipTabs':
+    '씬·디렉터·라이브러리·웹으로 이동합니다. 안 쓰는 탭은 설정 → 모양 → 표시할 탭에서 숨길 수 있습니다.',
+  'ui.onboardingTipGenerate': '{0} 키로 바로 생성할 수 있습니다.',
+  'ui.onboardingAppearanceTitle': '모양 선택',
+  'ui.onboardingPromptTitle': '프롬프트 입력 방식',
+  'ui.onboardingPromptSingle': '한 칸',
+  'ui.onboardingPromptSingleHint': '모든 태그를 한곳에 씁니다.',
+  'ui.onboardingPromptSplit': '세 칸',
+  'ui.onboardingPromptSplitHint': '자주 쓰는 태그는 고정해 두고 바꿀 부분만 고칩니다.',
+  'ui.onboardingStorageTitle': '이미지 저장'
+} as const
 
-const FILE_BACKED_TABLES = new Set<BackupTableName>([
-  'vibe_images',
-  'charref_images',
-  'library_images'
-])
-
-type DbRow = Record<string, string | number | null | Buffer>
-
-function encodeLegacyValue(value: DbRow[string]): unknown {
-  if (Buffer.isBuffer(value)) return { __blob: value.toString('base64') }
-  return value
-}
-
-function normalizedExtension(value: string): string {
-  const extension = (value.startsWith('.') ? value : extname(value)).toLowerCase()
-  return /^\.[a-z0-9]{1,10}$/.test(extension) ? extension : '.bin'
-}
-
-/** Preserve the original NAIS3 JSON export shape for older application versions. */
-export function exportLegacyJson(): Record<string, unknown> {
-  const db = getDb()
-  const tables: Record<string, Record<string, unknown>[]> = {}
-  for (const table of LEGACY_BACKUP_TABLES) {
-    const rows = db.prepare(`SELECT * FROM ${table}`).all() as DbRow[]
-    tables[table] = rows.map((row) => {
-      const output: Record<string, unknown> = {}
-      for (const [column, value] of Object.entries(row)) output[column] = encodeLegacyValue(value)
-      if (FILE_BACKED_TABLES.has(table) && typeof row.file_path === 'string') {
-        try {
-          output.__image = readFileSync(row.file_path).toString('base64')
-        } catch {
-          output.__image = null
-        }
-      }
-      return output
-    })
-  }
-  return {
-    _app: 'NAIS3',
-    _version: 1,
-    mainParams: getSetting('main_params') || null,
-    tables
-  }
-}
-
-/** Capture all portable workspace data. Rows whose required source file is missing are skipped. */
-export function captureBackupDatabase(): {
-  database: BackupDatabaseV1
-  skippedFiles: number
-} {
-  const db = getDb()
-  const tables: BackupDatabaseV1['tables'] = {}
-  const files: BackupFile[] = []
-  let skippedFiles = 0
-
-  for (const table of BACKUP_TABLES) {
-    const sourceRows = db.prepare(`SELECT * FROM ${table}`).all() as DbRow[]
-    const rows: BackupRow[] = []
-    for (const sourceRow of sourceRows) {
-      const row = { ...sourceRow }
-      if (FILE_BACKED_TABLES.has(table)) {
-        if (typeof row.id !== 'number' || typeof row.file_path !== 'string') {
-          throw new Error(`${table} contains an invalid file row`)
-        }
-        try {
-          files.push({
-            table,
-            rowId: row.id,
-            column: 'file_path',
-            extension: normalizedExtension(row.file_path),
-            data: readFileSync(row.file_path)
-          })
-          row.file_path = ''
-        } catch {
-          skippedFiles++
-          continue
-        }
-      }
-      rows.push(row)
-    }
-    tables[table] = rows
-  }
-
-  return {
-    database: {
-      version: BACKUP_FORMAT_VERSION,
-      includedTables: [...BACKUP_TABLES],
-      tables,
-      mainParams: getSetting('main_params') || null,
-      files
-    },
-    skippedFiles
-  }
-}
-
-export async function exportNais(appVersion: string): Promise<{
-  archive: Buffer
-  skippedFiles: number
-}> {
-  const { database, skippedFiles } = captureBackupDatabase()
-  return { archive: await createNaisArchive(database, appVersion), skippedFiles }
-}
-
-function tableColumns(table: BackupTableName): Set<string> {
-  const rows = getDb().prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
-  return new Set(rows.map((row) => row.name))
-}
-
-function validateRows(database: BackupDatabaseV1): Partial<Record<BackupTableName, BackupRow[]>> {
-  if (database.version !== BACKUP_FORMAT_VERSION) {
-    throw new Error(`Unsupported backup database version: ${database.version}`)
-  }
-  if (new Set(database.includedTables).size !== database.includedTables.length) {
-    throw new Error('Backup database contains duplicate tables')
-  }
-
-  const result: Partial<Record<BackupTableName, BackupRow[]>> = {}
-  for (const table of database.includedTables) {
-    const rows = database.tables[table]
-    if (!Array.isArray(rows)) throw new Error(`Backup database is missing table: ${table}`)
-    const allowedColumns = tableColumns(table)
-    result[table] = rows.map((sourceRow) => {
-      const row: BackupRow = {}
-      for (const [column, value] of Object.entries(sourceRow)) {
-        if (!allowedColumns.has(column)) throw new Error(`Unknown ${table} column: ${column}`)
-        if (
-          value !== null &&
-          typeof value !== 'string' &&
-          typeof value !== 'number' &&
-          !Buffer.isBuffer(value)
-        ) {
-          throw new Error(`Invalid ${table}.${column} value`)
-        }
-        row[column] = value
-      }
-      if (typeof row.id !== 'number') throw new Error(`${table} row is missing a numeric id`)
-      return row
-    })
-  }
-  return result
-}
-
-/**
- * Generation history (`images`) is not part of a backup, but `images.scene_id` references
- * `gen_scenes(id) ON DELETE SET NULL`. Replacing `gen_scenes` during restore would therefore
- * unlink every image from its scene. A `PRAGMA foreign_key_list` audit of every table after
- * all migrations shows this is the only foreign key from a table outside BACKUP_TABLES into
- * one inside it (the folder links point between backup tables, and gen_scenes.preset_id has
- * no declared FK), so nothing else is nulled or cascaded.
- *
- * A link is put back only when the restored data holds what is recognisably the same scene:
- * the same id and the same creation time. A numeric id alone is not trusted, because a backup
- * from another machine or an older state can reuse an id for an unrelated scene; such images
- * stay unlinked (NULL) rather than joining the wrong gallery. `created_at` is set once when the
- * scene is created, never edited, and travels in every backup, so it tells those scenes apart.
- * Names are deliberately not compared: renaming a scene or its preset after taking the backup
- * must not unlink the scene's own images.
- * Scene covers and image counts are derived from `images.scene_id` by the scene queries,
- * so restoring the links keeps them consistent as well.
- */
-const SCENE_IDENTITY_SQL = 'SELECT id, created_at FROM gen_scenes'
-
-function captureSceneLinks(db: ReturnType<typeof getDb>): {
-  /** created_at of every scene before the restore, by id */
-  scenes: Map<number, string>
-  images: { id: number; scene_id: number }[]
-} {
-  const images = db.prepare('SELECT id, scene_id FROM images WHERE scene_id IS NOT NULL').all() as {
-    id: number
-    scene_id: number
-  }[]
-  const rows = db.prepare(SCENE_IDENTITY_SQL).all() as { id: number; created_at: string }[]
-  return { scenes: new Map(rows.map((row) => [row.id, row.created_at])), images }
-}
-
-/** Relink images to scenes that survived the restore; returns the ids of those scenes. */
-function restoreSceneLinks(
-  db: ReturnType<typeof getDb>,
-  captured: ReturnType<typeof captureSceneLinks>
-): Set<number> {
-  const restoredCreatedAt = db.prepare('SELECT created_at FROM gen_scenes WHERE id = ?').pluck()
-  const same = new Set<number>()
-  for (const [id, createdAt] of captured.scenes) {
-    if (restoredCreatedAt.get(id) === createdAt) same.add(id)
-  }
-  const relink = db.prepare('UPDATE images SET scene_id = ? WHERE id = ?')
-  for (const image of captured.images) {
-    if (same.has(image.scene_id)) relink.run(image.scene_id, image.id)
-  }
-  return same
-}
-
-/** Restore a validated snapshot, replacing only the tables declared by that format. */
-export function restoreBackupDatabase(database: BackupDatabaseV1): { imported: number } {
-  const tables = validateRows(database)
-  const fileMap = new Map(
-    database.files.map((file) => [`${file.table}:${file.rowId}:${file.column}`, file])
-  )
-  const importRoot = join(libraryRoot(), '_imported', randomUUID())
-  let wroteFiles = false
-
-  try {
-    for (const table of database.includedTables) {
-      if (!FILE_BACKED_TABLES.has(table)) continue
-      for (const row of tables[table] ?? []) {
-        const file = fileMap.get(`${table}:${row.id}:file_path`)
-        if (!file) throw new Error(`Backup is missing the file for ${table} row ${row.id}`)
-        const destination = join(
-          importRoot,
-          `${table}_${row.id}${normalizedExtension(file.extension)}`
-        )
-        mkdirSync(importRoot, { recursive: true })
-        writeFileSync(destination, file.data, { flag: 'wx' })
-        row.file_path = destination
-        wroteFiles = true
-      }
-    }
-
-    let imported = 0
-    const db = getDb()
-    const included = new Set(database.includedTables)
-    let replacedSceneIds: number[] = []
-    const transaction = db.transaction(() => {
-      const sceneLinks = included.has('gen_scenes') ? captureSceneLinks(db) : null
-      for (const table of [...BACKUP_TABLES].reverse()) {
-        if (included.has(table)) db.prepare(`DELETE FROM ${table}`).run()
-      }
-      for (const table of BACKUP_TABLES) {
-        if (!included.has(table)) continue
-        for (const row of tables[table] ?? []) {
-          const columns = Object.keys(row)
-          if (columns.length === 0) throw new Error(`${table} contains an empty row`)
-          const placeholders = columns.map(() => '?').join(', ')
-          db.prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`).run(
-            ...columns.map((column) => row[column])
-          )
-          imported++
-        }
-      }
-      if (sceneLinks) {
-        // A scene that is recognisably the same keeps its links and its queued jobs; only the
-        // ones that were really replaced count as deleted for the generation queue.
-        const kept = restoreSceneLinks(db, sceneLinks)
-        replacedSceneIds = [...sceneLinks.scenes.keys()].filter((id) => !kept.has(id))
-      }
-      if (typeof database.mainParams === 'string') {
-        setSetting('main_params', database.mainParams)
-      }
-    })
-    transaction()
-    if (replacedSceneIds.length > 0) sceneEvents.emit('deleted', replacedSceneIds)
-    return { imported }
-  } catch (error) {
-    if (wroteFiles && existsSync(importRoot)) {
-      rmSync(importRoot, { recursive: true, force: true })
-    }
-    throw error
-  }
-}
-
-export async function importNais(input: Buffer): Promise<{ imported: number }> {
-  return restoreBackupDatabase(await readNaisArchive(input))
-}
-
-export function importLegacyJson(data: Record<string, unknown>): {
-  imported: number
-  skippedFiles: number
-} {
-  const { database, skippedFiles } = legacyNais3ToBackupDatabase(data)
-  return { ...restoreBackupDatabase(database), skippedFiles }
-}
-
-// Compatibility exports for existing main-process call sites.
-export const exportAll = exportLegacyJson
-export function importAll(data: Record<string, unknown>): { imported: number } {
-  return importLegacyJson(data)
-}
+export type MessageId = keyof typeof KO
+export type MessageCatalog = { readonly [K in MessageId]: string }

@@ -7,6 +7,11 @@ import type { Plugin } from 'vite'
 import type { GenerationRequest } from '../shared/types'
 import { analyzeArtists } from '../main/images/artists'
 import {
+  FreeBgRemovalError,
+  freeBgImageCodec,
+  removeBackgroundFree
+} from '../main/images/background-removal'
+import {
   buildGenerateImagePayload,
   type BuildOptions,
   type CharacterReferenceOptions,
@@ -14,10 +19,17 @@ import {
 } from '../main/nai/payload'
 import { ENDPOINTS } from '../main/nai/endpoints'
 import { upscaleRequest } from '../main/nai/upscale-request'
-import { isV5Model, modelCapabilities } from '../shared/nai-models'
-import { v5ReferenceSize } from '../shared/reference-image'
+import { inpaintingModelFor, isV5Model, modelCapabilities } from '../shared/nai-models'
+import { referencesSentFor, referenceTypeForModel } from '../shared/precise-reference'
+import { prepareReferenceImage } from '../main/refs/reference-image'
 import { parseSubscriptionResponse, type NaiSubscriptionResponse } from '../shared/subscription'
 import { countWithQwenTokenizer, loadQwenTokenizer } from '../main/nai/qwen-tokenizer-core'
+import {
+  buildTagIndex,
+  createTagSearcher,
+  type RawTag,
+  type TagSearcher
+} from '../shared/tag-search'
 
 const API_PREFIX = '/__nais/api/'
 const MAX_BODY_BYTES = 64 * 1024 * 1024
@@ -68,6 +80,8 @@ interface BrowserVibeInput {
   strength: number
   informationExtracted: number
   encodedBase64?: string
+  /** 메타데이터에서 복원한 바이브 — imageBase64는 원본이 아닌 썸네일이라 인코딩하면 안 된다 */
+  encodedOnly?: boolean
 }
 
 interface BrowserCharRefInput {
@@ -87,6 +101,12 @@ async function prepareVibes(
   const encodings: { id: number; encodedBase64: string }[] = []
   for (const input of inputs) {
     let encoded = input.encodedBase64
+    if (!encoded && input.encodedOnly) {
+      // 렌더러가 먼저 번역된 오류로 멈춘다 — 여기는 Anlas를 쓰지 않기 위한 마지막 방어선
+      throw new Error(
+        `Vibe ${input.id} was restored from image metadata and has no encoding for ${model} at Info ${input.informationExtracted}`
+      )
+    }
     if (!encoded) {
       const response = await fetch(ENDPOINTS.encodeVibe, {
         method: 'POST',
@@ -110,46 +130,24 @@ async function prepareVibes(
   return { options, encodings }
 }
 
-export async function prepareBrowserCharRefs(
-  inputs: BrowserCharRefInput[],
-  model: string
+async function prepareCharRefs(
+  model: string,
+  inputs: BrowserCharRefInput[]
 ): Promise<CharacterReferenceOptions[]> {
+  const mode = modelCapabilities(model).characterReferenceImages
   return Promise.all(
     inputs
-      .filter((input) => isV5Model(model) || input.referenceType !== 'costume')
-      .map(async (input) => {
-        const image = sharp(Buffer.from(input.imageBase64, 'base64'))
-        const metadata = await image.metadata()
-        if (isV5Model(model)) {
-          const size = v5ReferenceSize(metadata.width ?? 1, metadata.height ?? 1)
-          const processed = await image
-            .resize(size.resizeWidth, size.resizeHeight, { fit: 'fill' })
-            .extract({ left: size.left, top: size.top, width: size.width, height: size.height })
-            .png()
-            .toBuffer()
-          return { ...input, imageBase64: processed.toString('base64') }
-        }
-        const ratio = (metadata.width ?? 1) / (metadata.height ?? 1)
-        const canvas =
-          ratio > 1.2
-            ? { width: 1536, height: 1024 }
-            : ratio < 1 / 1.2
-              ? { width: 1024, height: 1536 }
-              : { width: 1472, height: 1472 }
-        const processed = await image
-          .resize(canvas.width, canvas.height, {
-            fit: 'contain',
-            background: { r: 0, g: 0, b: 0 }
-          })
-          .png()
-          .toBuffer()
-        return {
-          referenceType: input.referenceType,
-          strength: input.strength,
-          fidelity: input.fidelity,
-          imageBase64: processed.toString('base64')
-        }
-      })
+      .filter((input) => referenceTypeForModel(input.referenceType, model) !== null)
+      .map(async (input) => ({
+        referenceType: input.referenceType,
+        strength: input.strength,
+        fidelity: input.fidelity,
+        imageBase64: await prepareReferenceImage(
+          sharp,
+          Buffer.from(input.imageBase64, 'base64'),
+          mode
+        )
+      }))
   )
 }
 
@@ -182,21 +180,26 @@ async function route(
 
   if (path === 'generate') {
     const token = String(body.token ?? '')
-    const request = body.request as GenerationRequest
+    let request = body.request as GenerationRequest
     const source = request.source
-    const capabilities = modelCapabilities(request.model, Boolean(source?.maskBase64))
     const preparedVibes = await prepareVibes(
       token,
       request.model,
-      capabilities.vibes ? ((body.vibes as BrowserVibeInput[] | undefined) ?? []) : [],
+      (body.vibes as BrowserVibeInput[] | undefined) ?? [],
       signal
     )
-    const characterReferences = await prepareBrowserCharRefs(
-      capabilities.characterReferences
-        ? ((body.characterReferences as BrowserCharRefInput[] | undefined) ?? [])
-        : [],
-      request.model
-    )
+    // Electron과 같이 마스크가 있으면 인페인트 모델로 보내고, 레퍼런스도 그 모델 기준으로 준비한다
+    // (V5 인페인트는 레퍼런스 미지원 — 보내지 않을 이미지는 전처리하지 않는다)
+    const hasMask = Boolean(source?.maskBase64)
+    if (hasMask && !request.model.includes('inpainting')) {
+      request = { ...request, model: inpaintingModelFor(request.model) }
+    }
+    const characterReferences = referencesSentFor(request.model, hasMask)
+      ? await prepareCharRefs(
+          request.model,
+          (body.characterReferences as BrowserCharRefInput[] | undefined) ?? []
+        )
+      : []
     const buildOptions: BuildOptions = {
       ...(source
         ? {
@@ -282,6 +285,18 @@ async function route(
     return artistTags.length > 0 ? { tags: artistTags } : { error: 'No artist tags found' }
   }
 
+  if (path === 'remove-background-free') {
+    const image = Buffer.from(String(body.imageBase64 ?? '').replace(/^data:[^,]+,/, ''), 'base64')
+    try {
+      const result = await removeBackgroundFree(image, freeBgImageCodec(sharp))
+      return { base64: result.image.toString('base64'), space: result.spaceId }
+    } catch (e) {
+      // 번역은 화면 언어를 아는 렌더러에서 — 데스크톱과 같은 문구로 바꾼다
+      if (e instanceof FreeBgRemovalError) return { attempts: e.attempts }
+      throw e
+    }
+  }
+
   if (path === 'tokens') {
     const texts = Array.isArray(body.texts) ? body.texts.map(String) : []
     if (isV5Model(String(body.model ?? ''))) {
@@ -292,20 +307,7 @@ async function route(
   }
 
   if (path === 'tags') {
-    const query = String(body.query ?? '')
-      .trim()
-      .toLowerCase()
-      .replace(/_/g, ' ')
-    const limit = Math.max(1, Math.min(50, Number(body.limit) || 8))
-    if (query.length < 2) return { items: [] }
-    const matches = tags()
-      .filter((entry) => entry.tag.startsWith(query) || entry.tag.includes(query))
-      .sort(
-        (a, b) =>
-          Number(b.tag.startsWith(query)) - Number(a.tag.startsWith(query)) || b.count - a.count
-      )
-      .slice(0, limit)
-    return { items: matches }
+    return { items: tags().search(String(body.query ?? ''), Number(body.limit)) }
   }
 
   throw new Error(`Unknown browser gateway route: ${path}`)
@@ -350,22 +352,12 @@ export function browserGateway(): Plugin {
   }
 }
 
-interface TagEntry {
-  tag: string
-  count: number
-  type: string
-}
-
-let tagCache: TagEntry[] | null = null
-function tags(): TagEntry[] {
-  if (tagCache) return tagCache
-  const source = JSON.parse(readFileSync(resolve('resources/tags.json'), 'utf8')) as {
-    value: string
-    count: number
-    type: string
-  }[]
-  tagCache = source.map((entry) => ({ tag: entry.value, count: entry.count, type: entry.type }))
-  return tagCache
+let tagSearcher: TagSearcher | null = null
+function tags(): TagSearcher {
+  tagSearcher ??= createTagSearcher(
+    buildTagIndex(JSON.parse(readFileSync(resolve('resources/tags.json'), 'utf8')) as RawTag[])
+  )
+  return tagSearcher
 }
 
 interface TokenizerDef {
