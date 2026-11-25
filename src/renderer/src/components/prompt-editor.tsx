@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { cn } from '../lib/utils'
 import { useT } from '../lib/i18n'
 import { caretCoords } from '../lib/caret'
+import { PromptTagHover } from './prompt-tag-hover'
 import { highlightRanges } from '../lib/prompt-weights'
 import { fragmentAtSelection, fragmentPaths, useFragmentsStore } from '../stores/fragments-store'
 
@@ -346,6 +347,12 @@ export function PromptEditor({
         </div>
       )}
 
+      <PromptTagHover
+        value={value}
+        onValueChange={onValueChange}
+        textarea={textareaRef}
+        typography={TYPO}
+      />
       <textarea
         ref={textareaRef}
         aria-label={ariaLabel}

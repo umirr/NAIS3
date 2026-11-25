@@ -3,7 +3,7 @@ name: Windows Fork Release
 on:
   workflow_dispatch:
   push:
-    branches: ['release/v1.0.320']
+    branches: ['release/v1.0.33-refresh']
 
 permissions:
   contents: read
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository == 'umirr/NAIS3' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/v1.0.320')
+    if: github.repository == 'umirr/NAIS3' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/v1.0.33-refresh')
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -66,9 +66,9 @@ jobs:
           set -euo pipefail
           version=$(node -p "require('./package.json').version")
           tag="v$version"
-          test "$tag" = "v1.0.320"
+          test "$tag" = "v1.0.33"
           gh release view "$tag" --repo "$GITHUB_REPOSITORY"
           gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "dist/nais3-$version-setup.exe" "dist/nais3-$version-setup.exe.blockmap" dist/latest.yml
           stamp=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S KST')
           printf '\n수정 빌드 업로드 시각: %s\n소스 커밋: https://github.com/%s/commit/%s\n' "$stamp" "$GITHUB_REPOSITORY" "$GITHUB_SHA" >> "release-notes/$tag.md"
-          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file "release-notes/$tag.md"
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "NAIS3 1.0.33 — 태그 켜기·끄기 및 V5 레퍼런스" --notes-file "release-notes/$tag.md"
