@@ -35,6 +35,7 @@ import {
 } from './nai/account-router'
 import { enforceGenerationGuard } from './nai/anlas-guard'
 import { localPromptMetadata } from './nai/payload'
+import { disposeQwenTokenizer } from './nai/qwen-tokenizer'
 import { prepareCharRefs, prepareVibes } from './refs/prepare'
 import { GenerationQueue } from './queue/generation-queue'
 import { getPresetName, getScene } from './scenes/repo'
@@ -380,7 +381,8 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('quit', () => {
+app.on('will-quit', () => {
+  disposeQwenTokenizer()
   closeDb()
 })
 
