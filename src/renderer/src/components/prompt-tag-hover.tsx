@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { promptTags, togglePromptTag } from '@shared/prompt-tags'
+import { disabledWeightGroups, promptTags, togglePromptTag } from '@shared/prompt-tags'
 import { useT } from '../lib/i18n'
 
 export function PromptTagHover({
@@ -45,6 +45,31 @@ export function PromptTagHover({
   }, [menu, textarea])
   const display = (text: string): string => text.replaceAll('\u0336', '\u200b')
   const tags = promptTags(value)
+  const disabledGroups = disabledWeightGroups(value)
+  const syntaxDisplay = (start: number, end: number): React.ReactNode => {
+    const points = new Set([start, end])
+    for (const group of disabledGroups) {
+      if (group.start > start && group.start < end) points.add(group.start)
+      if (group.end > start && group.end < end) points.add(group.end)
+    }
+    const sorted = [...points].sort((a, b) => a - b)
+    return sorted.slice(0, -1).map((point, i) => (
+      <span
+        key={point}
+        style={
+          disabledGroups.some((g) => point >= g.start && point < g.end)
+            ? {
+                color: 'var(--prompt-tag-disabled-ink)',
+                background: 'var(--prompt-tag-disabled-bg)',
+                boxDecorationBreak: 'clone'
+              }
+            : undefined
+        }
+      >
+        {display(value.slice(point, sorted[i + 1]))}
+      </span>
+    ))
+  }
   useEffect(() => {
     const ta = textarea.current
     if (!ta) return
@@ -111,7 +136,7 @@ export function PromptTagHover({
       >
         {tags.map((tag, i) => (
           <span key={tag.start}>
-            {display(value.slice(i ? tags[i - 1].end : 0, tag.start))}
+            {syntaxDisplay(i ? tags[i - 1].end : 0, tag.start)}
             <span
               data-tag-start={tag.start}
               data-tag-end={tag.end}
@@ -129,7 +154,7 @@ export function PromptTagHover({
             </span>
           </span>
         ))}
-        {display(value.slice(tags.length ? tags[tags.length - 1].end : 0))}
+        {syntaxDisplay(tags.length ? tags[tags.length - 1].end : 0, value.length)}
       </div>
       {menu &&
         createPortal(

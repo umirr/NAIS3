@@ -1,17 +1,72 @@
-name: Publish final release description
+name: Windows Fork Release
+
 on:
+  workflow_dispatch:
   push:
     branches: ['release/v1.0.33-refresh']
+
 permissions:
   contents: read
+
+concurrency:
+  group: windows-fork-release
+  cancel-in-progress: false
+
 jobs:
-  description:
-    if: github.repository == 'umirr/NAIS3'
+  build:
+    if: github.repository == 'umirr/NAIS3' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/v1.0.33-refresh')
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check version and release notes
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          node scripts/verify-release.mjs version "v$version"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: pnpm test
+      - run: pnpm run build:win --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - run: node scripts/verify-packaged-app.mjs win32 x64
+      - run: node scripts/verify-release.mjs assets win32-x64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-release
+          path: |
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/latest.yml
+          if-no-files-found: error
+
+  publish:
+    needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - env:
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-release
+          path: dist
+      - name: Create and publish Windows release
+        shell: bash
+        env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit v1.0.33 --repo "$GITHUB_REPOSITORY" --notes-file release-notes/v1.0.33.md
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          tag="v$version"
+          test "$tag" = "v1.0.33"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY"
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "dist/nais3-$version-setup.exe" "dist/nais3-$version-setup.exe.blockmap" dist/latest.yml
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "NAIS3 1.0.33 — 태그 켜기·끄기 및 V5 레퍼런스" --notes-file "release-notes/$tag.md"
