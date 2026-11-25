@@ -1,0 +1,48 @@
+name: Validate contribution
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['validate/prompt-controls-qhd']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-fork-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'umirr/NAIS3' && github.ref == 'refs/heads/validate/prompt-controls-qhd'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check version and release notes
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          node scripts/verify-release.mjs version "v$version"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: pnpm test
+      - run: pnpm run build:win --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - run: node scripts/verify-packaged-app.mjs win32 x64
+      - run: node scripts/verify-release.mjs assets win32-x64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-release
+          path: |
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/latest.yml
+          if-no-files-found: error
+
