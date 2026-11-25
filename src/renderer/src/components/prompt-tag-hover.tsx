@@ -23,29 +23,41 @@ export function PromptTagHover({
     x: number
     y: number
   } | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const popupHovered = useRef(false)
+  const [menu, setMenu] = useState<typeof hover>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!menu) return
+    const dismiss = (event: PointerEvent): void => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenu(null)
+    }
+    const key = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setMenu(null)
+        textarea.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', dismiss)
+    document.addEventListener('keydown', key)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      document.removeEventListener('keydown', key)
+    }
+  }, [menu, textarea])
   const display = (text: string): string => text.replaceAll('\u0336', '\u200b')
   const tags = promptTags(value)
   useEffect(() => {
     const ta = textarea.current
     if (!ta) return
     const sync = (): void => {
-      popupHovered.current = false
       if (mirror.current) {
         mirror.current.scrollTop = ta.scrollTop
         mirror.current.scrollLeft = ta.scrollLeft
       }
       setHover(null)
+      setMenu(null)
     }
-    const leave = (): void => {
-      clearTimeout(timer.current)
-      timer.current = setTimeout(() => {
-        if (!popupHovered.current) setHover(null)
-      }, 250)
-    }
-    const move = (event: MouseEvent): void => {
-      clearTimeout(timer.current)
+    const leave = (): void => setHover(null)
+    const locate = (event: MouseEvent): typeof hover => {
       const spans = mirror.current?.querySelectorAll<HTMLElement>('[data-tag-start]') ?? []
       for (const span of spans) {
         const rect = Array.from(span.getClientRects()).find(
@@ -58,29 +70,32 @@ export function PromptTagHover({
         if (rect) {
           const start = Number(span.dataset.tagStart),
             end = Number(span.dataset.tagEnd)
-          setHover((current) =>
-            current?.start === start && current.end === end
-              ? current
-              : {
-                  start,
-                  end,
-                  disabled: value.slice(start, end).includes('\u0336'),
-                  x: Math.max(8, Math.min(rect.left, window.innerWidth - 160)),
-                  y: Math.max(8, rect.top - 36)
-                }
-          )
-          return
+          return {
+            start,
+            end,
+            disabled: value.slice(start, end).includes('\u0336'),
+            x: Math.max(8, Math.min(event.clientX, window.innerWidth - 180)),
+            y: Math.max(8, Math.min(event.clientY, window.innerHeight - 48))
+          }
         }
       }
-      leave()
+      return null
     }
+    const move = (event: MouseEvent): void => setHover(locate(event))
+    const context = (event: MouseEvent): void => {
+      const tag = locate(event)
+      if (!tag) return
+      event.preventDefault()
+      setMenu(tag)
+    }
+    ta.addEventListener('contextmenu', context)
     ta.addEventListener('mousemove', move)
     ta.addEventListener('mouseleave', leave)
     ta.addEventListener('scroll', sync)
     ta.addEventListener('keydown', sync)
     sync()
     return () => {
-      clearTimeout(timer.current)
+      ta.removeEventListener('contextmenu', context)
       ta.removeEventListener('mousemove', move)
       ta.removeEventListener('mouseleave', leave)
       ta.removeEventListener('scroll', sync)
@@ -116,29 +131,27 @@ export function PromptTagHover({
         ))}
         {display(value.slice(tags.length ? tags[tags.length - 1].end : 0))}
       </div>
-      {hover &&
+      {menu &&
         createPortal(
-          <button
-            className="fixed z-50 rounded border border-line bg-surface px-3 py-1.5 text-[12px] text-ink shadow-lg"
-            style={{ left: hover.x, top: hover.y }}
-            onMouseEnter={() => {
-              popupHovered.current = true
-              clearTimeout(timer.current)
-            }}
-            onMouseLeave={() => {
-              popupHovered.current = false
-              setHover(null)
-            }}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              onValueChange(togglePromptTag(value, hover.start, hover.end))
-              popupHovered.current = false
-              setHover(null)
-              textarea.current?.focus()
-            }}
+          <div
+            ref={menuRef}
+            role="menu"
+            className="fixed z-[100] min-w-[150px] rounded-lg border border-line bg-surface p-1 text-ink shadow-xl"
+            style={{ left: menu.x, top: menu.y }}
           >
-            {t(hover.disabled ? 'ui.enablePromptTag' : 'ui.disablePromptTag')}
-          </button>,
+            <button
+              autoFocus
+              role="menuitem"
+              className="w-full rounded-sm px-3 py-1.5 text-left text-[12.5px] hover:bg-surface-2 focus:bg-surface-2 focus:outline-none"
+              onClick={() => {
+                onValueChange(togglePromptTag(value, menu.start, menu.end))
+                setMenu(null)
+                textarea.current?.focus()
+              }}
+            >
+              {t(menu.disabled ? 'ui.enablePromptTag' : 'ui.disablePromptTag')}
+            </button>
+          </div>,
           document.body
         )}
     </>
