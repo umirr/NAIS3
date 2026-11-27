@@ -267,7 +267,7 @@ export function PromptEditor({
       return
     }
     setTokenStart(start)
-    const query = token.trim()
+    const query = token.trim().replace(/[\u0336\u2060]/g, '')
     const showTags = (items: TagEntry[]): void => {
       setSuggestions(items.map((t) => ({ kind: 'tag' as const, ...t })))
       setSelected(0)
@@ -379,10 +379,11 @@ export function PromptEditor({
           )}
           style={{ caretColor: 'var(--ink)' }}
           spellCheck={false}
-          value={value}
+          value={value.replaceAll('\u0336', '\u2060')}
           placeholder={placeholder}
           onChange={(e) => {
-            onValueChange(e.target.value)
+            const stored = e.target.value.replaceAll('\u2060', '\u0336')
+            onValueChange(stored)
             const inputType = (e.nativeEvent as InputEvent).inputType
             if (
               e.target.dataset.promptTagEdit ||
@@ -394,7 +395,7 @@ export function PromptEditor({
               setSuggestions([])
               return
             }
-            refreshSuggestions(e.target.value, e.target.selectionStart)
+            refreshSuggestions(stored, e.target.selectionStart)
           }}
           onScroll={syncScroll}
           onDoubleClick={(e) => {
@@ -440,7 +441,9 @@ export function PromptEditor({
             // 되열지 못하게 한다 (B7). 150ms 지연은 추천 클릭이 blur보다 먼저 처리되도록.
             clearTimeout(debounceRef.current)
             searchSeqRef.current++
-            setTimeout(() => setSuggestions([]), 150)
+            setTimeout(() => {
+              if (document.activeElement !== textareaRef.current) setSuggestions([])
+            }, 150)
           }}
         />
       </PromptTagHover>

@@ -19,7 +19,9 @@ export function applyPromptTagToggle(
   }
   const editStart = Math.min(start, first),
     editEnd = Math.max(end, oldTail)
-  const replacement = next.slice(editStart, next.length - (value.length - editEnd))
+  const displayed = ta.hasAttribute('data-prompt-input')
+  const rawReplacement = next.slice(editStart, next.length - (value.length - editEnd))
+  const replacement = displayed ? rawReplacement.replaceAll('\u0336', '\u2060') : rawReplacement
   const oldStart = ta.selectionStart,
     oldEnd = ta.selectionEnd,
     direction = ta.selectionDirection
@@ -34,7 +36,7 @@ export function applyPromptTagToggle(
       typeof document.execCommand === 'function' &&
       document.execCommand('insertText', false, replacement)
     if (!inserted) ta.setRangeText(replacement, editStart, editEnd, 'end')
-    flushSync(() => onValueChange(ta.value))
+    flushSync(() => onValueChange(displayed ? ta.value.replaceAll('\u2060', '\u0336') : ta.value))
     ta.setSelectionRange(map(oldStart), map(oldEnd), direction)
     ta.scrollTop = scrollTop
     ta.scrollLeft = scrollLeft
