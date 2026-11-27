@@ -37,13 +37,14 @@ export async function installMobileRuntime(): Promise<void> {
   if (!isAndroid()) return
   const base = window.nais
   const listeners = new Set<(value: QueueStatus) => void>()
+  const sceneListeners = new Set<(value: IpcEventMap['scenes:changed']) => void>()
   let sync: Promise<void> = Promise.resolve()
   const reconcile = (status: NativeQueueStatus): Promise<void> => {
     const next = sync.then(async () => {
       const existing = await readBrowserState()
       const known = new Set(existing.images.map((image) => image.mobileJobId))
       const fresh = status.completed.filter((job) => !known.has(job.id))
-      if (fresh.length)
+      if (fresh.length) {
         await mutateBrowserState((state) => {
           for (const job of fresh) {
             if (state.images.some((image) => image.mobileJobId === job.id)) continue
@@ -68,6 +69,12 @@ export async function installMobileRuntime(): Promise<void> {
             }
           }
         })
+        for (const job of fresh) {
+          if (job.request.sceneId == null) continue
+          for (const listener of sceneListeners)
+            listener({ sceneId: job.request.sceneId, filePath: nativeImageUrl(job.filePath) })
+        }
+      }
     })
     sync = next.catch(() => undefined)
     return next
@@ -182,6 +189,15 @@ export async function installMobileRuntime(): Promise<void> {
     ...base,
     invoke: invoke as NaisApi['invoke'],
     on<C extends keyof IpcEventMap>(channel: C, listener: (payload: IpcEventMap[C]) => void) {
+      if (channel === 'scenes:changed') {
+        const wrapped = listener as (payload: IpcEventMap['scenes:changed']) => void
+        sceneListeners.add(wrapped)
+        const unsubscribe = base.on('scenes:changed', wrapped)
+        return () => {
+          sceneListeners.delete(wrapped)
+          unsubscribe()
+        }
+      }
       if (channel !== 'queue:changed') return base.on(channel, listener)
       const wrapped = listener as (payload: QueueStatus) => void
       listeners.add(wrapped)

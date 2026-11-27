@@ -91,7 +91,13 @@ public class NaisStoragePlugin extends Plugin {
                 (!key.equals("library") && (flags & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) == 0)) {
                 throw new IllegalStateException("The selected folder does not allow required access");
             }
-            getContext().getContentResolver().takePersistableUriPermission(uri, flags);
+            if ((flags & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != 0) {
+                getContext().getContentResolver().takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            } else {
+                getContext().getContentResolver().takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
             // Export location is independent from the configured generation output folders.
             if (!key.equals("export") && !folders().edit().putString(key, uri.toString()).commit()) {
                 throw new IllegalStateException("Cannot remember selected folder");

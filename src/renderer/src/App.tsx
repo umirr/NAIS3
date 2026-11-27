@@ -171,6 +171,8 @@ export default function App({ mobile = false }: { mobile?: boolean } = {}): Reac
           }}
         />
         <FragmentEditorDialog />
+        <TextPromptHost />
+        <InpaintHost />
         <MetadataDialog />
         <Toaster />
         <AnimatePresence>{!ready && <LoadingScreen key="loading" />}</AnimatePresence>

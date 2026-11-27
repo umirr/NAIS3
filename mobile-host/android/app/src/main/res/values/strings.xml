@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="generation_running">Generating images. Tap to return to NAIS3.</string>
-    <string name="app_name">NAIS3</string>
-    <string name="title_activity_main">NAIS3</string>
-    <string name="package_name">net.nais3.mobile</string>
-    <string name="custom_url_scheme">net.nais3.mobile</string>
+    <string name="app_name" translatable="false">NAIS3</string>
+    <string name="title_activity_main" translatable="false">NAIS3</string>
+    <string name="package_name" translatable="false">net.nais3.mobile</string>
+    <string name="custom_url_scheme" translatable="false">net.nais3.mobile</string>
 </resources>
