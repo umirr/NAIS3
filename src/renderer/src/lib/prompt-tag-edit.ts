@@ -1,4 +1,5 @@
-import { togglePromptTag } from '@shared/prompt-tags'
+import { promptTagChange } from '@shared/prompt-tags'
+import { flushSync } from 'react-dom'
 
 export function applyPromptTagToggle(
   ta: HTMLTextAreaElement,
@@ -7,37 +8,39 @@ export function applyPromptTagToggle(
   end: number,
   onValueChange: (value: string) => void
 ): void {
-  const next = togglePromptTag(value, start, end)
-  const replacement = next.slice(start, next.length - (value.length - end))
+  const { value: next, mapPosition: map } = promptTagChange(value, start, end)
+  let first = 0,
+    oldTail = value.length,
+    newTail = next.length
+  while (first < oldTail && first < newTail && value[first] === next[first]) first++
+  while (oldTail > first && newTail > first && value[oldTail - 1] === next[newTail - 1]) {
+    oldTail--
+    newTail--
+  }
+  const editStart = Math.min(start, first),
+    editEnd = Math.max(end, oldTail)
+  const replacement = next.slice(editStart, next.length - (value.length - editEnd))
   const oldStart = ta.selectionStart,
     oldEnd = ta.selectionEnd,
     direction = ta.selectionDirection
   const scrollTop = ta.scrollTop,
     scrollLeft = ta.scrollLeft
-  const enabling = value.slice(start, end).includes('\u0336')
-  const map = (position: number): number => {
-    if (position <= start) return position
-    if (position >= end) return position + next.length - value.length
-    const prefix = value.slice(start, position)
-    return (
-      start +
-      (enabling
-        ? prefix.replaceAll('\u0336', '').length
-        : togglePromptTag(prefix, 0, prefix.length).length)
-    )
-  }
-  ta.focus()
-  ta.setSelectionRange(start, end)
+  ta.focus({ preventScroll: true })
+  ta.setSelectionRange(editStart, editEnd)
   // Chromium inserts this into the textarea's native undo history (including Ctrl+Z).
-  const inserted =
-    typeof document.execCommand === 'function' &&
-    document.execCommand('insertText', false, replacement)
-  if (!inserted) ta.setRangeText(replacement, start, end, 'end')
-  onValueChange(ta.value)
-  requestAnimationFrame(() => {
-    if (!ta.isConnected) return
+  ta.dataset.promptTagEdit = 'true'
+  try {
+    const inserted =
+      typeof document.execCommand === 'function' &&
+      document.execCommand('insertText', false, replacement)
+    if (!inserted) ta.setRangeText(replacement, editStart, editEnd, 'end')
+    flushSync(() => onValueChange(ta.value))
     ta.setSelectionRange(map(oldStart), map(oldEnd), direction)
     ta.scrollTop = scrollTop
     ta.scrollLeft = scrollLeft
-  })
+    // Synchronize all presentation mirrors before the browser paints this edit.
+    ta.dispatchEvent(new Event('scroll'))
+  } finally {
+    delete ta.dataset.promptTagEdit
+  }
 }

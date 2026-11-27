@@ -70,3 +70,13 @@ jobs:
           gh release view "$tag" --repo "$GITHUB_REPOSITORY"
           gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "dist/nais3-$version-setup.exe" "dist/nais3-$version-setup.exe.blockmap" dist/latest.yml
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "NAIS3 1.0.33 — 태그 켜기·끄기 및 V5 레퍼런스" --notes-file "release-notes/$tag.md"
+          # Cleanup only after the validated replacement has uploaded successfully.
+          for asset in nais3-1.0.32-modified-setup.exe nais3-1.0.32-modified-setup.exe.blockmap; do
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq "$asset"; then
+              gh release delete-asset "$tag" "$asset" --repo "$GITHUB_REPOSITORY" --yes
+            fi
+          done
+          if gh release view v1.0.320 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete v1.0.320 --repo "$GITHUB_REPOSITORY" --yes
+          fi
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --latest

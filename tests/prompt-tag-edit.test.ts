@@ -16,13 +16,11 @@ it('maps a selection after a toggled tag and restores scroll and direction', asy
   ta.scrollTop = 50
   const change = vi.fn()
   applyPromptTagToggle(ta, ta.value, 0, 9, change)
-  await new Promise((resolve) => requestAnimationFrame(resolve))
   expect(ta.value).toBe(togglePromptTag('blue eyes, red hair', 0, 9))
   expect([ta.selectionStart, ta.selectionEnd, ta.selectionDirection]).toEqual([20, 28, 'backward'])
   expect(ta.scrollTop).toBe(50)
   expect(change).toHaveBeenCalledWith(ta.value)
   applyPromptTagToggle(ta, ta.value, 0, 18, change)
-  await new Promise((resolve) => requestAnimationFrame(resolve))
   expect([ta.selectionStart, ta.selectionEnd]).toEqual([11, 19])
 })
 
@@ -43,4 +41,16 @@ it('selects only the target before a native history insertion and never inserts 
   } finally {
     Reflect.deleteProperty(document, 'execCommand')
   }
+})
+
+it('repairs legacy syntax markers and maps the caret before returning', () => {
+  const ta = document.createElement('textarea')
+  document.body.append(ta)
+  const original = 'a 1.5::detail, other::, last'
+  ta.value = [...original.slice(0, 13)].map((c) => c + '\u0336').join('') + original.slice(13)
+  ta.setSelectionRange(ta.value.length, ta.value.length)
+  applyPromptTagToggle(ta, ta.value, 0, 26, vi.fn())
+  expect(ta.value).toBe(original)
+  expect(ta.selectionStart).toBe(original.length)
+  expect(ta.dataset.promptTagEdit).toBeUndefined()
 })
