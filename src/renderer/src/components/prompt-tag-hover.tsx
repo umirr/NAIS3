@@ -150,7 +150,7 @@ export function PromptTagHover({
             ? {
                 color: disabled.some((r) => start >= r.start && start < r.end)
                   ? 'var(--prompt-tag-disabled-ink)'
-                  : 'HighlightText'
+                  : undefined
               }
             : undefined
         }

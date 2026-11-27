@@ -287,9 +287,3 @@ input {
 .no-drag {
   -webkit-app-region: no-drag;
 }
-
-/* Keep the native selection background; selected glyphs are drawn above it. */
-textarea[data-prompt-input]::selection {
-  background: Highlight;
-  color: transparent;
-}

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { act, createElement as h } from 'react'
+import { readFileSync } from 'node:fs'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { PromptTagHover } from '../src/renderer/src/components/prompt-tag-hover'
@@ -154,10 +155,17 @@ it('paints only selected glyphs above the native highlight and keeps disabled te
   ).toBe(true)
   expect(spans.some((s) => s.textContent?.includes('red hair'))).toBe(true)
   expect(spans.every((s) => !s.style.background && !s.style.backgroundColor)).toBe(true)
+  expect(
+    spans.filter((s) => s.textContent?.includes('red hair')).every((s) => !s.style.color)
+  ).toBe(true)
   expect(overlay.textContent).not.toContain('\u0336')
   await act(async () => {
     textarea.setSelectionRange(2, 2)
     textarea.dispatchEvent(new Event('select'))
   })
   expect(container.querySelector('[data-prompt-selection-mirror]')).toBeNull()
+})
+
+it('leaves browser-native selection colors unstyled', () => {
+  expect(readFileSync('src/renderer/src/assets/main.css', 'utf8')).not.toContain('::selection')
 })
