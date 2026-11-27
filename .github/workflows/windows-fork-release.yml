@@ -2,6 +2,8 @@ name: Windows Fork Release
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['release/v1.0.33-refresh']
 
 permissions:
   contents: read
@@ -12,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository == 'umirr/NAIS3' && github.ref == 'refs/heads/main'
+    if: github.repository == 'umirr/NAIS3' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/v1.0.33-refresh')
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -64,19 +66,7 @@ jobs:
           set -euo pipefail
           version=$(node -p "require('./package.json').version")
           tag="v$version"
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $tag already exists; refusing to replace it."
-            exit 1
-          fi
-          gh release create "$tag" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "NAIS3 $version — V5 레퍼런스 지원" \
-            --notes-file "release-notes/$tag.md" \
-            --draft \
-            "dist/nais3-$version-setup.exe" \
-            "dist/nais3-$version-setup.exe.blockmap" \
-            dist/latest.yml
-          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets \
-            --jq 'if (.assets | length) == 3 then .assets[].name else error("Expected three release assets") end'
-          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          test "$tag" = "v1.0.33"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY"
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "dist/nais3-$version-setup.exe" "dist/nais3-$version-setup.exe.blockmap" dist/latest.yml
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "NAIS3 1.0.33 — 태그 켜기·끄기 및 V5 레퍼런스" --notes-file "release-notes/$tag.md"
