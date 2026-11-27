@@ -289,7 +289,11 @@ input {
 }
 
 /* Keep selected text visible through the transparent native input layer. */
+textarea[data-prompt-input] {
+  cursor: text;
+}
+
 textarea[data-prompt-input]::selection {
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  background: color-mix(in srgb, Highlight 28%, transparent);
   color: transparent;
 }
