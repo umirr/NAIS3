@@ -151,7 +151,7 @@ public class NaisStoragePlugin extends Plugin {
             try {
                 Uri tree = grantedTree(call.getString("uri"), true);
                 String name = call.getString("name", "");
-                if (name.isBlank() || name.contains("/") || name.contains("\\") || name.contains("\0")) {
+                if (name.trim().isEmpty() || name.contains("/") || name.contains("\\") || name.contains("\0")) {
                     throw new IllegalArgumentException("Invalid image filename");
                 }
                 String data = call.getString("base64");

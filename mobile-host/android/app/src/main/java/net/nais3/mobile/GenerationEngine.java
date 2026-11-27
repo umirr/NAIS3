@@ -96,7 +96,7 @@ final class GenerationEngine {
                 }
                 job.getJSONObject("request");
                 job.getJSONObject("payload");
-                if (job.getString("token").isBlank()) throw new IllegalArgumentException("Missing API token");
+                if (job.getString("token").trim().isEmpty()) throw new IllegalArgumentException("Missing API token");
                 requireOutputTree(job.getString("destinationUri"));
                 job.put("state", "pending");
                 jobs().put(job);
@@ -268,7 +268,9 @@ final class GenerationEngine {
         }
         synchronized (this) {
             job.put("filePath", outputUri.toString());
-            job.put("createdAt", java.time.Instant.now().toString());
+            java.text.SimpleDateFormat timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.ROOT);
+            timestamp.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            job.put("createdAt", timestamp.format(new java.util.Date()));
             job.put("state", "done");
             job.remove("error");
             job.remove("token");

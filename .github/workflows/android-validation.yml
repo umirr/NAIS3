@@ -33,6 +33,12 @@ jobs:
       - run: bash gradlew assembleDebug lintDebug
         working-directory: mobile-host/android
       - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: android-validation-reports
+          path: mobile-host/android/app/build/reports/
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
         with:
           name: nais3-android-development
           path: mobile-host/android/app/build/outputs/apk/debug/app-debug.apk
