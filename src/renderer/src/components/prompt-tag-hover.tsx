@@ -7,7 +7,7 @@ import {
   type ReactNode,
   type RefObject
 } from 'react'
-import { analyzePromptTags, maskPromptComments } from '@shared/prompt-tags'
+import { analyzePromptTags } from '@shared/prompt-tags'
 import { flushSync } from 'react-dom'
 import { useT } from '../lib/i18n'
 import { applyPromptTagToggle } from '../lib/prompt-tag-edit'
@@ -29,12 +29,14 @@ export function PromptTagHover({
   onValueChange,
   textarea,
   typography,
+  onToggleStart,
   children
 }: {
   value: string
   onValueChange: (value: string) => void
   textarea: RefObject<HTMLTextAreaElement | null>
   typography: string
+  onToggleStart?: () => void
   children?: ReactNode
 }): React.JSX.Element {
   const t = useT()
@@ -44,8 +46,15 @@ export function PromptTagHover({
   const open = useRef(false)
   const pendingToggle = useRef<typeof menu>(null)
   const analysis = useMemo(() => analyzePromptTags(value), [value])
+  const comments = useMemo(
+    () =>
+      [...value.matchAll(/^[ \t]*#[^\r\n]*/gm)].map((m) => ({
+        start: m.index!,
+        end: m.index! + m[0].length
+      })),
+    [value]
+  )
   const display = (text: string): string => text.replaceAll('\u0336', '\u2060')
-  const masked = useMemo(() => maskPromptComments(value), [value])
   useLayoutEffect(() => syncScroll(mirror.current, textarea.current), [textarea, value])
   useEffect(() => {
     const ta = textarea.current
@@ -79,15 +88,19 @@ export function PromptTagHover({
   const syntax = (start: number, end: number): ReactNode => {
     const points = new Set([start, end])
     for (const group of analysis.disabledGroups) {
-      if (group.start > start && group.start < end) points.add(group.start)
-      if (group.end > start && group.end < end) points.add(group.end)
+      for (const point of [group.start, group.openEnd, group.closeStart, group.end])
+        if (point > start && point < end) points.add(point)
     }
+    for (const comment of comments)
+      for (const point of [comment.start, comment.end])
+        if (point > start && point < end) points.add(point)
     const sorted = [...points].sort((a, b) => a - b)
     return sorted.slice(0, -1).map((point, i) => (
       <span
         key={point}
         style={
-          analysis.disabledGroups.some((g) => point >= g.start && point < g.end)
+          analysis.disabledGroups.some((g) => point >= g.start && point < g.end) &&
+          !comments.some((c) => point >= c.start && point < c.end)
             ? {
                 color: 'var(--prompt-tag-disabled-ink)',
                 background: 'var(--prompt-tag-disabled-bg)',
@@ -117,36 +130,26 @@ export function PromptTagHover({
           <span key={tag.start}>
             {syntax(i ? analysis.tags[i - 1].end : 0, tag.start)}
             <span>
-              {display(value.slice(tag.start, tag.end))
-                .split('\n')
-                .map((line, index, lines) => {
-                  const comment =
-                    masked.slice(tag.start, tag.end).split('\n')[index]?.trim() === '' &&
-                    line.trim() !== ''
-                  return (
-                    <span
-                      key={index}
-                      data-tag-start={comment ? undefined : tag.start}
-                      data-tag-end={comment ? undefined : tag.end}
-                      style={
-                        comment
-                          ? undefined
-                          : {
-                              background: tag.disabled
-                                ? 'var(--prompt-tag-disabled-bg)'
-                                : hover === tag.start
-                                  ? 'var(--prompt-tag-hover-bg)'
-                                  : undefined,
-                              color: tag.disabled ? 'var(--prompt-tag-disabled-ink)' : undefined,
-                              boxDecorationBreak: 'clone'
-                            }
-                      }
-                    >
-                      {line}
-                      {index < lines.length - 1 ? '\n' : ''}
-                    </span>
-                  )
-                })}
+              {tag.parts.map((part, index) => (
+                <span key={part.start}>
+                  {syntax(index ? tag.parts[index - 1].end : tag.start, part.start)}
+                  <span
+                    data-tag-start={tag.start}
+                    data-tag-end={tag.end}
+                    style={{
+                      background: tag.disabled
+                        ? 'var(--prompt-tag-disabled-bg)'
+                        : hover === tag.start
+                          ? 'var(--prompt-tag-hover-bg)'
+                          : undefined,
+                      color: tag.disabled ? 'var(--prompt-tag-disabled-ink)' : undefined,
+                      boxDecorationBreak: 'clone'
+                    }}
+                  >
+                    {display(value.slice(part.start, part.end))}
+                  </span>
+                </span>
+              ))}
             </span>
           </span>
         ))}
@@ -195,13 +198,14 @@ export function PromptTagHover({
               const target = pendingToggle.current
               pendingToggle.current = null
               if (!ta) return
-              ta.focus()
+              ta.focus({ preventScroll: true })
               if (target) applyPromptTagToggle(ta, value, target.start, target.end, onValueChange)
             })
           }}
         >
           <ContextMenuItem
             onSelect={() => {
+              onToggleStart?.()
               pendingToggle.current = menu
             }}
           >

@@ -1,133 +1,259 @@
 const STRIKE = '\u0336'
-interface Group {
+interface Range {
   start: number
-  openEnd: number
-  closeStart: number
   end: number
 }
+interface Group extends Range {
+  openEnd: number
+  closeStart: number
+}
+interface Tag extends Range {
+  disabled: boolean
+  parts: Range[]
+}
+interface Syntax {
+  groups: Group[]
+  protected: Set<number>
+  references: Range[]
+  syntaxMarkers: Set<number>
+}
+
 export function maskPromptComments(text: string): string {
   return text.replace(/^[ \t]*#[^\r\n]*/gm, (line) => ' '.repeat(line.length))
 }
-function weightGroups(text: string): Group[] {
+
+/** Read syntax without state markers, retaining exact stored offsets. */
+function syntaxOf(text: string): Syntax {
+  const masked = maskPromptComments(text)
+  let plain = ''
+  const offsets: number[] = []
+  for (let i = 0; i < masked.length; i++)
+    if (masked[i] !== STRIKE) {
+      plain += masked[i]
+      offsets.push(i)
+    }
+  const start = (i: number): number => offsets[i] ?? text.length
+  const end = (i: number): number => {
+    let pos = i > 0 ? offsets[i - 1] + 1 : 0
+    while (text[pos] === STRIKE) pos++
+    return pos
+  }
   const groups: Group[] = [],
-    stack: { start: number; openEnd: number; close: string }[] = []
+    references: Range[] = [],
+    protectedIndices = new Set<number>()
+  const syntaxMarkers = new Set<number>()
+  const protect = (a: number, b: number): void => {
+    for (let i = start(a); i < end(b); i++) {
+      protectedIndices.add(i)
+      if (text[i] === STRIKE) syntaxMarkers.add(i)
+    }
+  }
+  const stack: { start: number; openEnd: number; close: string }[] = []
   const numeric = /-?\d+(?:\.\d+)?::/y
-  for (let i = 0; i < text.length;) {
+  for (let i = 0; i < plain.length;) {
+    if (plain[i] === '<') {
+      const match = /^<[^<>\n]+>/.exec(plain.slice(i))
+      if (match) {
+        const to = i + match[0].length
+        protect(i, to)
+        references.push({ start: start(i), end: end(to) })
+        i = to
+        continue
+      }
+    }
     numeric.lastIndex = i
-    const open = numeric.exec(text)
+    const open = numeric.exec(plain)
     if (open) {
-      stack.push({ start: i, openEnd: i + open[0].length, close: '::' })
-      i += open[0].length
+      const to = i + open[0].length
+      protect(i, to)
+      stack.push({ start: i, openEnd: to, close: '::' })
+      i = to
       continue
     }
     const top = stack[stack.length - 1]
-    if (top && text.startsWith(top.close, i)) {
+    if (top && plain.startsWith(top.close, i)) {
+      const to = i + top.close.length
+      protect(i, to)
       stack.pop()
       groups.push({
-        start: top.start,
-        openEnd: top.openEnd,
-        closeStart: i,
-        end: i + top.close.length
+        start: start(top.start),
+        openEnd: end(top.openEnd),
+        closeStart: start(i),
+        end: end(to)
       })
-      i += top.close.length
+      i = to
       continue
     }
-    if (text[i] === '{' || text[i] === '[')
-      stack.push({ start: i, openEnd: i + 1, close: text[i] === '{' ? '}' : ']' })
+    if ('{}[]'.includes(plain[i])) {
+      protect(i, i + 1)
+      if (plain[i] === '{' || plain[i] === '[')
+        stack.push({ start: i, openEnd: i + 1, close: plain[i] === '{' ? '}' : ']' })
+    } else if (plain.startsWith('::', i)) {
+      protect(i, i + 2)
+      i += 2
+      continue
+    }
     i++
   }
-  return groups
+  for (const match of text.matchAll(/^[ \t]*#[^\r\n]*/gm))
+    for (let i = match.index!; i < match.index! + match[0].length; i++) protectedIndices.add(i)
+  return { groups, protected: protectedIndices, references, syntaxMarkers }
 }
-export function promptTags(
-  text: string,
-  groups = weightGroups(maskPromptComments(text))
-): { start: number; end: number; disabled: boolean }[] {
-  const masked = maskPromptComments(text)
-  const syntax = new Set<number>()
-  for (const group of groups) {
-    for (let i = group.start; i < group.openEnd; i++) syntax.add(i)
-    for (let i = group.closeStart; i < group.end; i++) syntax.add(i)
-  }
-  const tags: { start: number; end: number; disabled: boolean }[] = []
-  // Only commas divide tags; whitespace and line breaks remain part of a tag.
+
+function tagsOf(text: string, syntax: Syntax): Tag[] {
+  const masked = maskPromptComments(text),
+    tags: Tag[] = []
+  // Syntax and comments never split a comma-delimited tag or receive markers.
   for (const match of masked.matchAll(/[^,]+/g)) {
-    let start = match.index!,
-      end = start + match[0].length
-    while (start < end && (syntax.has(start) || /\s/.test(masked[start]))) start++
-    while (end > start && (syntax.has(end - 1) || /\s/.test(masked[end - 1]))) end--
-    if (start === end) continue
-    const raw = masked.slice(start, end)
-    if (/^<[^<>]+>$/.test(raw)) continue
-    tags.push({ start, end, disabled: raw.includes(STRIKE) })
+    const a = match.index!,
+      b = a + match[0].length
+    let first = -1,
+      last = -1
+    for (let i = a; i < b; i++)
+      if (!syntax.protected.has(i) && !/\s/.test(text[i]) && text[i] !== STRIKE) {
+        if (first < 0) first = i
+        last = i
+      }
+    if (first < 0) continue
+    let finish = last + 1
+    while (text[finish] === STRIKE && !syntax.protected.has(finish)) finish++
+    const parts: Range[] = []
+    for (let i = first; i < finish;) {
+      if (syntax.protected.has(i)) {
+        i++
+        continue
+      }
+      const from = i++
+      while (i < finish && !syntax.protected.has(i)) i++
+      parts.push({ start: from, end: i })
+    }
+    tags.push({
+      start: first,
+      end: finish,
+      parts,
+      disabled: parts.some((p) => text.slice(p.start, p.end).includes(STRIKE))
+    })
   }
   return tags
 }
-export function togglePromptTag(text: string, start: number, end: number): string {
-  const tag = text.slice(start, end)
-  const enabling = maskPromptComments(text).slice(start, end).includes(STRIKE)
-  const comments = [...text.matchAll(/^[ \t]*#[^\r\n]*/gm)].map((m) => ({
-    start: m.index!,
-    end: m.index! + m[0].length
-  }))
+
+export function promptTags(text: string): Tag[] {
+  return tagsOf(text, syntaxOf(text))
+}
+
+export function promptTagChange(
+  text: string,
+  start: number,
+  end: number
+): { value: string; mapPosition: (position: number) => number } {
+  const syntax = syntaxOf(text)
+  let enabling = false
+  for (let i = start; i < end; i++)
+    if (text[i] === STRIKE && !syntax.protected.has(i)) {
+      enabling = true
+      break
+    }
+  const changes: { position: number; delta: number }[] = []
   let replacement = '',
-    offset = start
-  for (const char of tag) {
-    const comment = comments.some((range) => offset >= range.start && offset < range.end)
-    replacement += enabling
-      ? char === STRIKE && !comment
-        ? ''
-        : char
-      : char + (comment || char === '\n' || char === '\r' ? '' : STRIKE)
+    offset = 0
+  for (const char of text) {
+    const protectedChar = syntax.protected.has(offset)
+    const inTag = offset >= start && offset < end
+    if (
+      char === STRIKE &&
+      (syntax.syntaxMarkers.has(offset) || (inTag && enabling && !protectedChar))
+    )
+      changes.push({ position: offset + 1, delta: -1 })
+    else {
+      replacement += char
+      if (
+        inTag &&
+        !enabling &&
+        !protectedChar &&
+        char !== STRIKE &&
+        char !== '\n' &&
+        char !== '\r'
+      ) {
+        replacement += STRIKE
+        changes.push({ position: offset + char.length, delta: 1 })
+      }
+    }
     offset += char.length
   }
-  return text.slice(0, start) + replacement + text.slice(end)
+  return {
+    value: replacement,
+    mapPosition: (position) =>
+      position +
+      changes.reduce((delta, change) => delta + (position >= change.position ? change.delta : 0), 0)
+  }
 }
-export function disabledWeightGroups(
-  text: string,
-  tags = promptTags(text),
-  groups = weightGroups(maskPromptComments(text))
-): Group[] {
-  return groups.filter((group) => {
-    const inside = tags.filter((tag) => tag.start < group.closeStart && tag.end > group.openEnd)
+
+export function togglePromptTag(text: string, start: number, end: number): string {
+  return promptTagChange(text, start, end).value
+}
+
+function disabledGroupsOf(tags: Tag[], syntax: Syntax): Group[] {
+  return syntax.groups.filter((group) => {
+    if (syntax.references.some((ref) => ref.start < group.closeStart && ref.end > group.openEnd))
+      return false
+    const inside = tags.filter((tag) =>
+      tag.parts.some((p) => p.start < group.closeStart && p.end > group.openEnd)
+    )
     return inside.length > 0 && inside.every((tag) => tag.disabled)
   })
 }
-export function stripDisabledTags(text: string): string {
-  const tags = promptTags(text)
-  const ranges = [...tags.filter((tag) => tag.disabled), ...disabledWeightGroups(text, tags)].sort(
-    (a, b) => a.start - b.start
-  )
-  if (!ranges.length) return text
+
+export function disabledWeightGroups(text: string): Group[] {
+  const syntax = syntaxOf(text)
+  return disabledGroupsOf(tagsOf(text, syntax), syntax)
+}
+
+function removeRanges(text: string, ranges: Range[]): string {
   let result = '',
     cursor = 0
-  for (const range of ranges) {
+  for (const range of ranges.sort((a, b) => a.start - b.start)) {
     if (range.end <= cursor) continue
     result += text.slice(cursor, Math.max(cursor, range.start))
     cursor = range.end
   }
-  result += text.slice(cursor)
-  // Only trim commas at actual opening/closing weight boundaries; :: can be either.
-  const trims: { start: number; end: number }[] = []
-  for (const group of weightGroups(maskPromptComments(result))) {
+  return result + text.slice(cursor)
+}
+
+export function stripDisabledTags(text: string): string {
+  const syntax = syntaxOf(text),
+    tags = tagsOf(text, syntax),
+    disabled = tags.filter((t) => t.disabled)
+  if (!disabled.length)
+    return removeRanges(
+      text,
+      [...syntax.syntaxMarkers].map((start) => ({ start, end: start + 1 }))
+    )
+  const ranges = disabled.flatMap((t) => t.parts)
+  for (const group of disabledGroupsOf(tags, syntax))
+    ranges.push(
+      { start: group.start, end: group.openEnd },
+      { start: group.closeStart, end: group.end }
+    )
+  // Remove only content: a weight may cross several comma segments.
+  // Discard comments before separator cleanup, just as in generation.
+  let result = removeRanges(maskPromptComments(text), ranges).replaceAll(STRIKE, '')
+  const trims: Range[] = []
+  for (const group of syntaxOf(result).groups) {
     const inner = result.slice(group.openEnd, group.closeStart)
-    const leading = /^\s*,\s*/.exec(inner)
-    const trailing = /,\s*$/.exec(inner)
+    const leading = /^(?:\s*,)+\s*/.exec(inner),
+      trailing = /(?:,\s*)+$/.exec(inner)
     if (leading) trims.push({ start: group.openEnd, end: group.openEnd + leading[0].length })
     if (trailing) trims.push({ start: group.openEnd + trailing.index, end: group.closeStart })
   }
-  for (const range of trims.sort((a, b) => b.start - a.start))
-    result = result.slice(0, range.start) + result.slice(range.end)
+  result = removeRanges(result, trims)
   return result
     .replace(/,(\s*,)+/g, ',')
     .replace(/(^\s*,\s*|,\s*$)/g, '')
     .trim()
 }
 
-export function analyzePromptTags(text: string): {
-  tags: ReturnType<typeof promptTags>
-  disabledGroups: Group[]
-} {
-  const groups = weightGroups(maskPromptComments(text))
-  const tags = promptTags(text, groups)
-  return { tags, disabledGroups: disabledWeightGroups(text, tags, groups) }
+export function analyzePromptTags(text: string): { tags: Tag[]; disabledGroups: Group[] } {
+  const syntax = syntaxOf(text),
+    tags = tagsOf(text, syntax)
+  return { tags, disabledGroups: disabledGroupsOf(tags, syntax) }
 }

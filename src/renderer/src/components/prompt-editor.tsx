@@ -5,6 +5,7 @@ import { cn } from '../lib/utils'
 import { useT } from '../lib/i18n'
 import { caretCoords } from '../lib/caret'
 import { PromptTagHover } from './prompt-tag-hover'
+import { promptSearchHits } from '../lib/prompt-find'
 import { highlightRanges } from '../lib/prompt-weights'
 import { cachedTagSuggestions, rememberTagSuggestions } from '../lib/tag-suggestions'
 import { fragmentAtSelection, fragmentPaths, useFragmentsStore } from '../stores/fragments-store'
@@ -162,13 +163,7 @@ export function PromptEditor({
   const [hit, setHit] = useState(0)
   const hits = useMemo(() => {
     if (!findOpen || !query) return []
-    const needle = query.toLowerCase()
-    const hay = value.toLowerCase()
-    const out: number[] = []
-    for (let i = hay.indexOf(needle); i !== -1; i = hay.indexOf(needle, i + needle.length)) {
-      out.push(i)
-    }
-    return out
+    return promptSearchHits(value, query)
   }, [findOpen, query, value])
   // 글자를 지워 일치 수가 줄면 현재 위치가 범위를 벗어난다
   const current = hits.length === 0 ? -1 : Math.min(hit, hits.length - 1)
@@ -177,7 +172,7 @@ export function PromptEditor({
   function revealHit(index: number): void {
     const ta = textareaRef.current
     if (!ta || index < 0 || hits[index] == null) return // 0번째 글자 일치도 유효 (falsy 주의)
-    const { top, height } = caretCoords(ta, hits[index])
+    const { top, height } = caretCoords(ta, hits[index].start)
     if (top < ta.scrollTop || top + height > ta.scrollTop + ta.clientHeight) {
       ta.scrollTop = Math.max(0, top - ta.clientHeight / 2)
       syncScroll()
@@ -195,7 +190,7 @@ export function PromptEditor({
     const ta = textareaRef.current
     // 드래그해 둔 글자가 있으면 그걸 찾는 말로 (에디터 공통 관례)
     const selected = ta ? value.slice(ta.selectionStart, ta.selectionEnd) : ''
-    if (selected && !selected.includes('\n')) setQuery(selected)
+    if (selected && !selected.includes('\n')) setQuery(selected.replaceAll('\u0336', ''))
     setHit(0)
     setFindOpen(true)
     setSuggestions([])
@@ -208,8 +203,8 @@ export function PromptEditor({
     ta?.focus()
     // 찾던 자리에 커서를 두고 닫는다 — 바로 이어서 고칠 수 있게
     if (ta && current >= 0) {
-      const start = hits[current]
-      ta.setSelectionRange(start, start + query.length)
+      const { start, end } = hits[current]
+      ta.setSelectionRange(start, end)
     }
   }
 
@@ -350,15 +345,16 @@ export function PromptEditor({
             'pointer-events-none absolute inset-0 z-[1] overflow-hidden text-transparent'
           )}
         >
-          {hits.map((start, i) => (
+          {hits.map(({ start, end }, i) => (
             <span key={start}>
-              {value.slice(i === 0 ? 0 : hits[i - 1] + query.length, start)}
+              {value.slice(i === 0 ? 0 : hits[i - 1].end, start)}
               <span style={i === current ? FIND_HIT_CURRENT_STYLE : FIND_HIT_STYLE}>
-                {value.slice(start, start + query.length).replaceAll('\u0336', '\u2060')}
+                {value.slice(start, end).replaceAll('\u0336', '\u2060')}
               </span>
             </span>
           ))}
-          {value.slice(hits[hits.length - 1] + query.length)}
+          {value.slice(hits[hits.length - 1].end)}
+          {value.endsWith('\n') && '\u200b'}
         </div>
       )}
 
@@ -367,6 +363,11 @@ export function PromptEditor({
         onValueChange={onValueChange}
         textarea={textareaRef}
         typography={TYPO}
+        onToggleStart={() => {
+          clearTimeout(debounceRef.current)
+          searchSeqRef.current++
+          setSuggestions([])
+        }}
       >
         <textarea
           data-prompt-input
@@ -382,6 +383,17 @@ export function PromptEditor({
           placeholder={placeholder}
           onChange={(e) => {
             onValueChange(e.target.value)
+            const inputType = (e.nativeEvent as InputEvent).inputType
+            if (
+              e.target.dataset.promptTagEdit ||
+              inputType === 'historyUndo' ||
+              inputType === 'historyRedo'
+            ) {
+              clearTimeout(debounceRef.current)
+              searchSeqRef.current++
+              setSuggestions([])
+              return
+            }
             refreshSuggestions(e.target.value, e.target.selectionStart)
           }}
           onScroll={syncScroll}
