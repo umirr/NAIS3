@@ -1,0 +1,17 @@
+{
+  "name": "nais3-android-host",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0",
+  "packageManager": "pnpm@11.28.11",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.3",
+    "@capacitor/core": "8.6.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.3"
+  }
+}

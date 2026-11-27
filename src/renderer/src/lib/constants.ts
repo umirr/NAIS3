@@ -42,6 +42,11 @@ export const UC_PRESET_OPTIONS: { value: UcPresetIndex; label: string }[] = [
 
 export function imageUrl(filePath: string): string {
   if (filePath.startsWith('data:') || filePath.startsWith('blob:')) return filePath
+  if (
+    typeof window !== 'undefined' &&
+    filePath.startsWith(`${window.location.origin}/_capacitor_content_/`)
+  )
+    return filePath
   return `nais-image://local/?path=${encodeURIComponent(filePath)}`
 }
 

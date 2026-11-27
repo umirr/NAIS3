@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="generation_running">이미지를 생성하고 있습니다. 누르면 NAIS3로 돌아갑니다.</string>
+</resources>

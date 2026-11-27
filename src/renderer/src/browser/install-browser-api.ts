@@ -68,7 +68,14 @@ function emit<C extends keyof IpcEventMap>(channel: C, payload: IpcEventMap[C]):
   listeners.get(channel)?.forEach((listener) => listener(payload))
 }
 
+let nativeGateway:
+  ((route: string, body: unknown, signal?: AbortSignal) => Promise<unknown>) | null = null
+export function configureGateway(handler: NonNullable<typeof nativeGateway>): void {
+  nativeGateway = handler
+}
+
 async function gateway<T>(route: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  if (nativeGateway) return (await nativeGateway(route, body, signal)) as T
   const response = await fetch(`/__nais/api/${route}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

@@ -1,4 +1,13 @@
 export const KO = {
+  'mobile.noFolder': '저장 폴더를 선택해 주세요',
+  'mobile.folderAccessFailed': '폴더에 접근하지 못했습니다. 설정에서 폴더를 다시 선택해 주세요.',
+  'mobile.refreshFolder': '폴더 새로고침',
+  'mobile.imageList': '이미지 목록',
+  'mobile.loadMore': '더 보기',
+  'mobile.previousImage': '이전 이미지',
+  'mobile.nextImage': '다음 이미지',
+  'mobile.noImages': '표시할 이미지가 없습니다',
+  'mobile.imageLoadFailed': '이미지를 불러오지 못했습니다. 다시 시도해 주세요.',
   'ui.copySeedOnly': '시드만 복사',
   'ui.imageSeedNotFound': '이미지에서 시드 정보를 찾지 못했습니다',
   'ui.copyImageSeedFailed': '시드를 복사하지 못했습니다',

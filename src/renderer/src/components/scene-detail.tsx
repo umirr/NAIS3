@@ -16,8 +16,15 @@ import { PromptEditor } from './prompt-editor'
 import { ReserveCount } from './reserve-count'
 import { Button } from './ui/button'
 import { useT } from '../lib/i18n'
+import { SingleImageViewer } from '../mobile/single-image-viewer'
 
-export function SceneDetail({ scene }: { scene: Scene }): React.JSX.Element {
+export function SceneDetail({
+  scene,
+  mobile = false
+}: {
+  scene: Scene
+  mobile?: boolean
+}): React.JSX.Element {
   const t = useT()
   const select = useScenesStore((s) => s.select)
   const update = useScenesStore((s) => s.update)
@@ -147,7 +154,12 @@ export function SceneDetail({ scene }: { scene: Scene }): React.JSX.Element {
   return (
     <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-line bg-surface">
       {/* 헤더 */}
-      <div className="flex items-center gap-2 border-b border-line px-3 py-2">
+      <div
+        className={cn(
+          'flex items-center gap-2 border-b border-line px-3 py-2',
+          mobile && 'flex-wrap'
+        )}
+      >
         <Button size="sm" variant="ghost" className="gap-1" onClick={() => select(null)}>
           <ArrowLeft size={15} /> {t('ui.sceneList')}
         </Button>
@@ -285,7 +297,7 @@ export function SceneDetail({ scene }: { scene: Scene }): React.JSX.Element {
           >
             <Trash2 size={12} /> {t('ui.declutter')}
           </button>
-          <div className="flex items-center gap-0.5 rounded-md bg-surface-2 p-0.5">
+          <div hidden={mobile} className="flex items-center gap-0.5 rounded-md bg-surface-2 p-0.5">
             {[2, 3, 4, 5].map((n) => (
               <button
                 key={n}
@@ -301,7 +313,28 @@ export function SceneDetail({ scene }: { scene: Scene }): React.JSX.Element {
           </div>
         </div>
 
-        {images.length === 0 && !imagesLoading && !showTile ? (
+        {mobile ? (
+          <SingleImageViewer
+            key={`${scene.id}:${favoritesOnly}`}
+            images={images.map((image) => ({
+              id: image.id,
+              url: imageUrl(image.filePath),
+              label: scene.name
+            }))}
+            total={imagesTotal}
+            loading={imagesLoading}
+            loadMore={async () => {
+              const previous = new Set(images.map((image) => image.id))
+              await loadImages(scene.id, false)
+              const state = useScenesStore.getState()
+              if (state.selectedId !== scene.id) return null
+              const image = state.images.find((item) => !previous.has(item.id))
+              return image
+                ? { id: image.id, url: imageUrl(image.filePath), label: scene.name }
+                : null
+            }}
+          />
+        ) : images.length === 0 && !imagesLoading && !showTile ? (
           <p className="py-10 text-center text-[13px] text-faint">
             {favoritesOnly
               ? t('ui.noFavoritedImages')
@@ -383,7 +416,7 @@ export function SceneDetail({ scene }: { scene: Scene }): React.JSX.Element {
             ))}
           </div>
         )}
-        <div ref={sentinelRef} className="h-4" />
+        {!mobile && <div ref={sentinelRef} className="h-4" />}
         {imagesLoading && (
           <p className="py-3 text-center text-[12px] text-faint">{t('ui.loading')}</p>
         )}

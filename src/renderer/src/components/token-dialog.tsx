@@ -27,6 +27,8 @@ import { normalizeDailyAnlasCap } from '@shared/anlas-guard'
 import { isLang, LANGUAGES, SUPPORTED_LANGUAGES, type MessageId } from '@shared/i18n'
 import type { NaiAccountInfo, NaiTokenStoreLockReason } from '@shared/types'
 import discordSvg from '../assets/discord.svg'
+import { MobileFolderSettings } from '../mobile/folder-settings'
+import { isAndroid } from '../mobile/native-storage'
 import nais3Logo from '../assets/nais3-logo.svg'
 import { importBackup } from '../lib/backup-import'
 import { useBoolSetting, useSaveDir, useSetting } from '../lib/setting-hooks'
@@ -1216,6 +1218,30 @@ function PatreonIcon(): React.JSX.Element {
     <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M14.82 2.41c3.96 0 7.18 3.24 7.18 7.21 0 3.96-3.22 7.18-7.18 7.18-3.97 0-7.21-3.22-7.21-7.18 0-3.97 3.24-7.21 7.21-7.21M2 21.6h3.5V2.41H2V21.6z" />
     </svg>
+  )
+}
+
+export function MobileSettingsPage(): React.JSX.Element {
+  const t = useT()
+  return (
+    <div className="space-y-4 p-4">
+      <h1 className="text-lg font-semibold">{t('ui.settings')}</h1>
+      {[
+        { label: 'ui.naiAccount' as const, content: <AccountSection /> },
+        { label: 'ui.generate' as const, content: <GenerationSection /> },
+        {
+          label: 'ui.storage' as const,
+          content: isAndroid() ? <MobileFolderSettings /> : <StorageSection />
+        },
+        { label: 'ui.appearance' as const, content: <AppearanceSection /> },
+        { label: 'ui.about' as const, content: <AboutSection /> }
+      ].map(({ label, content }) => (
+        <details key={label} className="rounded-xl border border-line p-3">
+          <summary className="min-h-11 cursor-pointer py-2 font-medium">{t(label)}</summary>
+          {content}
+        </details>
+      ))}
+    </div>
   )
 }
 

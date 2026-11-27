@@ -58,7 +58,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 
-export function SceneMode(): React.JSX.Element {
+export function SceneMode({ mobile = false }: { mobile?: boolean } = {}): React.JSX.Element {
   const scenes = useScenesStore((s) => s.scenes)
   const selectedId = useScenesStore((s) => s.selectedId)
   const loadPresets = useScenesStore((s) => s.loadPresets)
@@ -69,7 +69,7 @@ export function SceneMode(): React.JSX.Element {
   }, [loadPresets])
 
   const selected = scenes.find((s) => s.id === selectedId) ?? null
-  if (selected) return <SceneDetail scene={selected} />
+  if (selected) return <SceneDetail key={selected.id} scene={selected} mobile={mobile} />
   return <SceneGrid />
 }
 

@@ -1,6 +1,15 @@
 import type { MessageCatalog } from './catalog-ko'
 
 export const ZH_CN = {
+  'mobile.noFolder': '请选择存储文件夹',
+  'mobile.folderAccessFailed': '无法访问文件夹，请在设置中重新选择。',
+  'mobile.refreshFolder': '刷新文件夹',
+  'mobile.imageList': '图像列表',
+  'mobile.loadMore': '显示更多',
+  'mobile.previousImage': '上一张图像',
+  'mobile.nextImage': '下一张图像',
+  'mobile.noImages': '没有可显示的图像',
+  'mobile.imageLoadFailed': '无法加载图像，请重试。',
   'ui.copySeedOnly': '仅复制种子',
   'ui.imageSeedNotFound': '未在此图像中找到种子信息',
   'ui.copyImageSeedFailed': '复制种子失败',

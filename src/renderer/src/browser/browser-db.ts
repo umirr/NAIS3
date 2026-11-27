@@ -24,6 +24,7 @@ export interface BrowserAccount extends Omit<NaiAccountInfo, 'tier' | 'anlas' | 
 // Persisted records keep the base64 `thumbnail` / `coverThumbnail` fields so existing IndexedDB
 // state stays readable; responses map them to the URL fields of the shared types.
 export interface BrowserImage extends Omit<HistoryItem, 'thumbnailUrl'> {
+  mobileJobId?: string
   thumbnail: string
   base64: string
   payloadJson: string | null
@@ -95,6 +96,15 @@ export function emptyState(): BrowserState {
 
 let databasePromise: Promise<IDBDatabase> | null = null
 let mutationQueue: Promise<unknown> = Promise.resolve()
+let nativeStore: {
+  read(): Promise<BrowserState | null>
+  write(state: BrowserState): Promise<void>
+} | null = null
+
+/** Install before renderer hydration; Android does not persist workspace data in IndexedDB. */
+export function configureWorkspaceStorage(store: NonNullable<typeof nativeStore>): void {
+  nativeStore = store
+}
 
 function database(): Promise<IDBDatabase> {
   if (databasePromise) return databasePromise
@@ -126,9 +136,9 @@ async function transaction<T>(
 }
 
 export async function readBrowserState(): Promise<BrowserState> {
-  const stored = await transaction<BrowserState | undefined>('readonly', (store) =>
-    store.get(STATE_KEY)
-  )
+  const stored = nativeStore
+    ? await nativeStore.read()
+    : await transaction<BrowserState | undefined>('readonly', (store) => store.get(STATE_KEY))
   return stored ? { ...emptyState(), ...stored } : emptyState()
 }
 
@@ -138,7 +148,8 @@ export function mutateBrowserState<T>(
   const operation = mutationQueue.then(async () => {
     const state = await readBrowserState()
     const result = await mutator(state)
-    await transaction<IDBValidKey>('readwrite', (store) => store.put(state, STATE_KEY))
+    if (nativeStore) await nativeStore.write(state)
+    else await transaction<IDBValidKey>('readwrite', (store) => store.put(state, STATE_KEY))
     return result
   })
   mutationQueue = operation.catch(() => undefined)

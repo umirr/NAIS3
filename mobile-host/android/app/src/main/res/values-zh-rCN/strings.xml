@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="generation_running">正在生成图像。点击返回 NAIS3。</string>
+</resources>

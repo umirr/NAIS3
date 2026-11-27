@@ -1,0 +1,7 @@
+{
+  "appId": "net.nais3.mobile",
+  "appName": "NAIS3",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false }
+}

@@ -21,7 +21,10 @@ import { PromptPanel } from './components/prompt-panel'
 import { RecoveryNotice } from './components/recovery-notice'
 import { SceneMode } from './components/scene-mode'
 import { Titlebar } from './components/titlebar'
-import { SettingsDialog } from './components/token-dialog'
+import { MobileSettingsPage, SettingsDialog } from './components/token-dialog'
+import { MobileShell } from './mobile/mobile-shell'
+import { MobileLibraryPage } from './mobile/library-page'
+import { isAndroid } from './mobile/native-storage'
 import { TextPromptHost } from './components/text-prompt-host'
 import { FragmentEditorDialog } from './components/fragment-editor-dialog'
 import { WebSearchMode } from './components/web-search-mode'
@@ -64,14 +67,14 @@ const CLIP_OUTER_RIGHT = { clipPath: 'inset(-100vh 0 -100vh -100vw)' } as const
 const loadOnboarding = (): Promise<ComponentType> =>
   import('./components/onboarding').then((m) => m.Onboarding)
 
-export default function App(): React.JSX.Element {
+export default function App({ mobile = false }: { mobile?: boolean } = {}): React.JSX.Element {
   const settingsOpen = useLayoutStore((s) => s.settingsOpen)
   const setSettingsOpen = useLayoutStore((s) => s.setSettingsOpen)
   const centerMode = useLayoutStore((s) => s.centerMode)
   const onboardingOpen = useLayoutStore((s) => s.onboardingOpen)
   const webHidden = useLayoutStore((s) => s.hiddenPages.includes('websearch'))
   // 숨긴 웹 탭은 <webview>를 내리므로, 어떤 경로로든 그 모드에 오면 빈 화면 대신 미리보기를 보여 준다
-  const webActive = centerMode === 'websearch' && !webHidden
+  const webActive = !mobile && centerMode === 'websearch' && !webHidden
   const webMounted = useWebSearchKeepAlive(webActive)
   const [ready, setReady] = useState(false)
   const [OnboardingView, setOnboardingView] = useState<ComponentType | null>(null)
@@ -108,7 +111,7 @@ export default function App(): React.JSX.Element {
         useVibesStore.getState().load(),
         useCharRefsStore.getState().load(),
         useShortcutsStore.getState().hydrate(),
-        useDirectorStore.getState().hydrate()
+        ...(!mobile ? [useDirectorStore.getState().hydrate()] : [])
       ])
       // 스플래시가 너무 순식간에 사라지지 않게 최소 표시 시간 확보
       setTimeout(() => setReady(true), 350)
@@ -134,7 +137,45 @@ export default function App(): React.JSX.Element {
       unbindNav()
       window.removeEventListener('keydown', onF5)
     }
-  }, [])
+  }, [mobile])
+
+  if (mobile)
+    return (
+      <TooltipProvider>
+        <MobileShell
+          onPage={(page) => {
+            if (page !== 'settings') useLayoutStore.getState().setCenterMode(page)
+          }}
+          views={{
+            main: (
+              <div className="mobile-generation">
+                <div className="mobile-prompt">
+                  <PromptPanel />
+                </div>
+                <div className="mobile-preview">
+                  <PreviewPane />
+                </div>
+              </div>
+            ),
+            scene: (
+              <div className="flex h-full min-h-0 flex-col">
+                <SceneMode mobile />
+              </div>
+            ),
+            library: (
+              <div className="flex h-full min-h-0 flex-col">
+                {isAndroid() ? <MobileLibraryPage /> : <LibraryMode />}
+              </div>
+            ),
+            settings: <MobileSettingsPage />
+          }}
+        />
+        <FragmentEditorDialog />
+        <MetadataDialog />
+        <Toaster />
+        <AnimatePresence>{!ready && <LoadingScreen key="loading" />}</AnimatePresence>
+      </TooltipProvider>
+    )
 
   return (
     <TooltipProvider>

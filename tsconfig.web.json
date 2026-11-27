@@ -12,6 +12,7 @@
     "outDir": "./node_modules/.tsc/web",
     "jsx": "react-jsx",
     "paths": {
+      "@capacitor/core": ["./mobile-host/node_modules/@capacitor/core"],
       "@renderer/*": [
         "./src/renderer/src/*"
       ],

@@ -1,6 +1,15 @@
 import type { MessageCatalog } from './catalog-ko'
 
 export const EN = {
+  'mobile.noFolder': 'Choose a storage folder',
+  'mobile.folderAccessFailed': 'Cannot access the folder. Select it again in Settings.',
+  'mobile.refreshFolder': 'Refresh folder',
+  'mobile.imageList': 'Image list',
+  'mobile.loadMore': 'Show more',
+  'mobile.previousImage': 'Previous image',
+  'mobile.nextImage': 'Next image',
+  'mobile.noImages': 'No images to display',
+  'mobile.imageLoadFailed': 'Could not load images. Please try again.',
   'ui.copySeedOnly': 'Copy seed only',
   'ui.imageSeedNotFound': 'No seed information found in this image',
   'ui.copyImageSeedFailed': 'Failed to copy the seed',

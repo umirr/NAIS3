@@ -8,6 +8,7 @@ export default defineConfig({
   root: resolve('src/renderer'),
   resolve: {
     alias: {
+      '@capacitor/core': resolve('mobile-host/node_modules/@capacitor/core/dist/index.js'),
       '@renderer': resolve('src/renderer/src'),
       '@shared': resolve('src/shared')
     }
