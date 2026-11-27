@@ -287,3 +287,10 @@ input {
 .no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* The selection surface covers the lower mirror; selected glyphs paint once above it.
+   Use the browser's selected-item palette rather than an accent or translucent fill. */
+textarea[data-prompt-input]::selection {
+  background: SelectedItem;
+  color: transparent;
+}

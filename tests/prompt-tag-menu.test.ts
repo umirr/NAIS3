@@ -140,6 +140,7 @@ it('paints only selected glyphs above the native highlight and keeps disabled te
   const value = togglePromptTag('blue eyes, red hair', 0, 9)
   await render(value)
   await act(async () => {
+    textarea.focus()
     textarea.setSelectionRange(0, value.length)
     textarea.dispatchEvent(new Event('select'))
   })
@@ -155,10 +156,11 @@ it('paints only selected glyphs above the native highlight and keeps disabled te
   ).toBe(true)
   expect(spans.some((s) => s.textContent?.includes('red hair'))).toBe(true)
   expect(spans.every((s) => !s.style.background && !s.style.backgroundColor)).toBe(true)
-  expect(
-    spans.filter((s) => s.textContent?.includes('red hair')).every((s) => !s.style.color)
-  ).toBe(true)
   expect(overlay.textContent).not.toContain('\u0336')
+  await act(async () => textarea.blur())
+  expect(container.querySelector('[data-prompt-selection-mirror]')).toBeNull()
+  await act(async () => textarea.focus())
+  expect(container.querySelector('[data-prompt-selection-mirror]')).not.toBeNull()
   await act(async () => {
     textarea.setSelectionRange(2, 2)
     textarea.dispatchEvent(new Event('select'))
@@ -166,6 +168,10 @@ it('paints only selected glyphs above the native highlight and keeps disabled te
   expect(container.querySelector('[data-prompt-selection-mirror]')).toBeNull()
 })
 
-it('leaves browser-native selection colors unstyled', () => {
-  expect(readFileSync('src/renderer/src/assets/main.css', 'utf8')).not.toContain('::selection')
+it('masks duplicate native selected glyphs using an opaque system palette', () => {
+  const css = readFileSync('src/renderer/src/assets/main.css', 'utf8')
+  const rule = /textarea\[data-prompt-input\]::selection\s*\{([^}]+)\}/.exec(css)![1]
+  expect(rule).toContain('color: transparent')
+  expect(rule).toContain('background: SelectedItem')
+  expect(rule).not.toContain('color-mix')
 })

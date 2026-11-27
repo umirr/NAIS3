@@ -43,6 +43,7 @@ export function PromptTagHover({
   const mirror = useRef<HTMLDivElement>(null)
   const selectionMirror = useRef<HTMLDivElement>(null)
   const [selection, setSelection] = useState({ start: 0, end: 0 })
+  const [selectionFocused, setSelectionFocused] = useState(false)
   const [hover, setHover] = useState<number | null>(null)
   const [menu, setMenu] = useState<{ start: number; end: number; disabled: boolean } | null>(null)
   const open = useRef(false)
@@ -76,6 +77,13 @@ export function PromptTagHover({
       )
     document.addEventListener('selectionchange', select)
     ta.addEventListener('select', select)
+    const focus = (): void => {
+      setSelectionFocused(true)
+      select()
+    }
+    const blur = (): void => setSelectionFocused(false)
+    ta.addEventListener('focus', focus)
+    ta.addEventListener('blur', blur)
     const observer = new ResizeObserver(sync)
     observer.observe(ta)
     const scroll = (): void => {
@@ -88,6 +96,8 @@ export function PromptTagHover({
       ta.removeEventListener('scroll', scroll)
       document.removeEventListener('selectionchange', select)
       ta.removeEventListener('select', select)
+      ta.removeEventListener('focus', focus)
+      ta.removeEventListener('blur', blur)
     }
   }, [textarea])
   const locate = (x: number, y: number): typeof menu => {
@@ -150,7 +160,7 @@ export function PromptTagHover({
             ? {
                 color: disabled.some((r) => start >= r.start && start < r.end)
                   ? 'var(--prompt-tag-disabled-ink)'
-                  : undefined
+                  : 'SelectedItemText'
               }
             : undefined
         }
@@ -205,7 +215,7 @@ export function PromptTagHover({
         )}
         {value.endsWith('\n') && '\u200b'}
       </div>
-      {selection.end > selection.start && (
+      {selectionFocused && selection.end > selection.start && (
         <div
           ref={selectionMirror}
           aria-hidden
