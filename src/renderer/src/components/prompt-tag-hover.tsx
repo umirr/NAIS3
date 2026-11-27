@@ -41,6 +41,8 @@ export function PromptTagHover({
 }): React.JSX.Element {
   const t = useT()
   const mirror = useRef<HTMLDivElement>(null)
+  const selectionMirror = useRef<HTMLDivElement>(null)
+  const [selection, setSelection] = useState({ start: 0, end: 0 })
   const [hover, setHover] = useState<number | null>(null)
   const [menu, setMenu] = useState<{ start: number; end: number; disabled: boolean } | null>(null)
   const open = useRef(false)
@@ -55,11 +57,25 @@ export function PromptTagHover({
     [value]
   )
   const display = (text: string): string => text.replaceAll('\u0336', '\u2060')
-  useLayoutEffect(() => syncScroll(mirror.current, textarea.current), [textarea, value])
+  useLayoutEffect(() => {
+    syncScroll(mirror.current, textarea.current)
+    syncScroll(selectionMirror.current, textarea.current)
+  }, [textarea, value, selection])
   useEffect(() => {
     const ta = textarea.current
     if (!ta) return
-    const sync = (): void => syncScroll(mirror.current, ta)
+    const sync = (): void => {
+      syncScroll(mirror.current, ta)
+      syncScroll(selectionMirror.current, ta)
+    }
+    const select = (): void =>
+      setSelection((previous) =>
+        previous.start === ta.selectionStart && previous.end === ta.selectionEnd
+          ? previous
+          : { start: ta.selectionStart, end: ta.selectionEnd }
+      )
+    document.addEventListener('selectionchange', select)
+    ta.addEventListener('select', select)
     const observer = new ResizeObserver(sync)
     observer.observe(ta)
     const scroll = (): void => {
@@ -70,6 +86,8 @@ export function PromptTagHover({
     return () => {
       observer.disconnect()
       ta.removeEventListener('scroll', scroll)
+      document.removeEventListener('selectionchange', select)
+      ta.removeEventListener('select', select)
     }
   }, [textarea])
   const locate = (x: number, y: number): typeof menu => {
@@ -110,6 +128,34 @@ export function PromptTagHover({
         }
       >
         {display(value.slice(point, sorted[i + 1]))}
+      </span>
+    ))
+  }
+  const selectedText = (): ReactNode => {
+    const disabled = [
+      ...analysis.tags.filter((t) => t.disabled).flatMap((t) => t.parts),
+      ...analysis.disabledGroups
+    ]
+    const points = new Set([0, value.length, selection.start, selection.end])
+    for (const range of disabled) {
+      points.add(range.start)
+      points.add(range.end)
+    }
+    const sorted = [...points].filter((p) => p >= 0 && p <= value.length).sort((a, b) => a - b)
+    return sorted.slice(0, -1).map((start, i) => (
+      <span
+        key={start}
+        style={
+          start >= selection.start && start < selection.end
+            ? {
+                color: disabled.some((r) => start >= r.start && start < r.end)
+                  ? 'var(--prompt-tag-disabled-ink)'
+                  : 'HighlightText'
+              }
+            : undefined
+        }
+      >
+        {display(value.slice(start, sorted[i + 1]))}
       </span>
     ))
   }
@@ -159,6 +205,20 @@ export function PromptTagHover({
         )}
         {value.endsWith('\n') && '\u200b'}
       </div>
+      {selection.end > selection.start && (
+        <div
+          ref={selectionMirror}
+          aria-hidden
+          data-prompt-selection-mirror
+          className={
+            typography +
+            ' pointer-events-none absolute inset-0 z-[2] overflow-hidden text-transparent'
+          }
+        >
+          {selectedText()}
+          {value.endsWith('\n') && '\u200b'}
+        </div>
+      )}
       <ContextMenuTrigger asChild disabled={hover === null && menu === null}>
         <div
           className="contents"

@@ -288,12 +288,8 @@ input {
   -webkit-app-region: no-drag;
 }
 
-/* Keep selected text visible through the transparent native input layer. */
-textarea[data-prompt-input] {
-  cursor: text;
-}
-
+/* Keep the native selection background; selected glyphs are drawn above it. */
 textarea[data-prompt-input]::selection {
-  background: color-mix(in srgb, Highlight 28%, transparent);
+  background: Highlight;
   color: transparent;
 }
