@@ -16,6 +16,7 @@ import { browserFragmentSource } from '../browser/browser-workspace'
 import { mutateBrowserState, nextBrowserId, readBrowserState } from '../browser/browser-db'
 import { configureGateway } from '../browser/install-browser-api'
 import { isAndroid, nativeImageUrl, nativeStorage } from './native-storage'
+import { searchMobileTags } from './tag-search'
 
 interface NativeQueueStatus extends QueueStatus {
   recovered: boolean
@@ -100,6 +101,7 @@ export async function installMobileRuntime(): Promise<void> {
   })
 
   configureGateway(async (route, data) => {
+    if (route === 'tags') return searchMobileTags(data as IpcInvokeMap['tags:search']['req'])
     const body = data as { token?: string }
     if (route === 'balance' || route === 'verify-token') {
       const response = await CapacitorHttp.get({

@@ -26,7 +26,7 @@ jobs:
       - run: pnpm --ignore-workspace install --frozen-lockfile --ignore-scripts
         working-directory: mobile-host
       - run: pnpm run typecheck:web
-      - run: pnpm exec vitest run tests/mobile-queue.test.ts tests/mobile-navigation.test.ts tests/scene-restore-links.test.ts tests/portable-nais-backup.test.ts tests/mobile-runtime.test.ts
+      - run: pnpm exec vitest run tests/mobile-queue.test.ts tests/mobile-navigation.test.ts tests/scene-restore-links.test.ts tests/portable-nais-backup.test.ts tests/mobile-runtime.test.ts tests/mobile-tag-search.test.ts
       - run: pnpm exec vite build --config vite.mobile.config.ts
       - run: node node_modules/@capacitor/cli/bin/capacitor sync android
         working-directory: mobile-host
