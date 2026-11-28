@@ -1,6 +1,10 @@
 import { expect, it, vi } from 'vitest'
 import JSZip from 'jszip'
-import { encodePortableNais, type PortableBackup } from '../src/shared/portable-nais-backup'
+import {
+  decodePortableNais,
+  encodePortableNais,
+  type PortableBackup
+} from '../src/shared/portable-nais-backup'
 import { readNaisArchive } from '../src/main/backup/archive'
 
 // Only the unmodified PC reader is exercised; its filesystem writer is not used.
@@ -54,5 +58,37 @@ it('retains PC checksum validation against changed image bytes', async () => {
   zip.file('assets/files/vibe_images/3.png', new Uint8Array([99]))
   await expect(readNaisArchive(await zip.generateAsync({ type: 'nodebuffer' }))).rejects.toThrow(
     'checksum mismatch'
+  )
+})
+
+it('decodes the same rows and binary assets as the PC reader', async () => {
+  const archive = await encodePortableNais(source(), 'test')
+  const mobile = await decodePortableNais(archive)
+  const pc = await readNaisArchive(Buffer.from(archive))
+  expect(mobile.mainParams).toBe(pc.mainParams)
+  expect(mobile.tables.gen_scenes).toEqual(pc.tables.gen_scenes)
+  expect(Array.from(mobile.tables.vibe_images![0].thumbnail as Uint8Array)).toEqual([1, 2, 3])
+  expect(mobile.files.map((file) => [...file.data])).toEqual(pc.files.map((file) => [...file.data]))
+})
+
+it('rejects a damaged asset before returning a restorable workspace', async () => {
+  const zip = await JSZip.loadAsync(await encodePortableNais(source(), 'test'))
+  zip.file('assets/files/library_images/5.webp', new Uint8Array([0]))
+  await expect(decodePortableNais(await zip.generateAsync({ type: 'uint8array' }))).rejects.toThrow(
+    'checksum mismatch'
+  )
+})
+
+it('rejects unsupported format versions and traversal entries', async () => {
+  const zip = await JSZip.loadAsync(await encodePortableNais(source(), 'test'))
+  const manifest = JSON.parse(await zip.file('manifest.json')!.async('string'))
+  zip.file('manifest.json', JSON.stringify({ ...manifest, formatVersion: 99 }))
+  await expect(decodePortableNais(await zip.generateAsync({ type: 'uint8array' }))).rejects.toThrow(
+    'Unsupported'
+  )
+  zip.file('manifest.json', JSON.stringify(manifest))
+  zip.file('../escaped.png', new Uint8Array([0]))
+  await expect(decodePortableNais(await zip.generateAsync({ type: 'uint8array' }))).rejects.toThrow(
+    'Unsafe archive path'
   )
 })

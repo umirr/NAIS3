@@ -39,6 +39,7 @@ export interface BrowserLibraryImage extends Omit<LibraryImage, 'thumbnailUrl'> 
 
 export interface BrowserScene extends Omit<Scene, 'thumbnailUrl'> {
   thumbnail: string
+  createdAt?: string
 }
 
 export interface BrowserLibraryStack extends Omit<LibraryStack, 'coverUrl'> {
@@ -46,6 +47,8 @@ export interface BrowserLibraryStack extends Omit<LibraryStack, 'coverUrl'> {
 }
 
 export interface BrowserState {
+  /** Original portable columns, including fields not edited by the mobile UI. */
+  mobileBackupRows?: string
   nextId: number
   settings: Record<string, string>
   accounts: BrowserAccount[]
