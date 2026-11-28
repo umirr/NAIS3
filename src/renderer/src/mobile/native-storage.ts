@@ -9,7 +9,7 @@ export interface NativeFolderEntry {
 }
 export interface NativeStorage {
   readSnapshot(): Promise<{ value: string | null }>
-  writeSnapshot(options: { value: string }): Promise<void>
+  writeSnapshot(options: { value: string; backupBeforeWrite?: boolean }): Promise<void>
   chooseFolder(options: { key: FolderPurpose }): Promise<{ cancelled: boolean; uri?: string }>
   getFolders(): Promise<Record<Exclude<FolderPurpose, 'export'>, string | null>>
   listFolder(options: { uri: string }): Promise<{ entries: NativeFolderEntry[] }>

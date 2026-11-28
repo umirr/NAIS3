@@ -1,4 +1,8 @@
 export const KO = {
+  'mobile.importNais': 'PC 호환 백업 가져오기 (.nais)',
+  'mobile.finishQueueBeforeRestore': '생성 작업을 완료하거나 취소한 뒤 복원해 주세요.',
+  'mobile.selectLibraryBeforeRestore': '이미지를 복원할 라이브러리 폴더를 먼저 선택해 주세요.',
+  'mobile.restoreDescription': '백업의 프리셋·씬·레퍼런스를 복원합니다. 라이브러리 이미지는 설정된 폴더의 새 하위 폴더에 저장됩니다. 기존 생성 이미지와 계정은 유지되며 완료 후 화면을 다시 불러옵니다.',
   'mobile.noFolder': '저장 폴더를 선택해 주세요',
   'mobile.folderAccessFailed': '폴더에 접근하지 못했습니다. 설정에서 폴더를 다시 선택해 주세요.',
   'mobile.refreshFolder': '폴더 새로고침',

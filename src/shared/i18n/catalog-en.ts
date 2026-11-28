@@ -1,6 +1,10 @@
 import type { MessageCatalog } from './catalog-ko'
 
 export const EN = {
+  'mobile.importNais': 'Import PC-compatible backup (.nais)',
+  'mobile.finishQueueBeforeRestore': 'Complete or cancel generation jobs before restoring.',
+  'mobile.selectLibraryBeforeRestore': 'Select a library folder before restoring images.',
+  'mobile.restoreDescription': 'Restore presets, scenes and references. Library images are saved in a new subfolder of the configured folder. Existing generated images and accounts are retained. The screen reloads after completion.',
   'mobile.noFolder': 'Choose a storage folder',
   'mobile.folderAccessFailed': 'Cannot access the folder. Select it again in Settings.',
   'mobile.refreshFolder': 'Refresh folder',

@@ -57,6 +57,10 @@ public class NaisStoragePlugin extends Plugin {
         io.execute(() -> {
             try {
                 new JSONObject(value);
+                if (Boolean.TRUE.equals(call.getBoolean("backupBeforeWrite", false))) {
+                    String previous = snapshot.read();
+                    if (previous != null) new SecureSnapshot(getContext(), "before-import").write(previous);
+                }
                 snapshot.write(value);
                 call.resolve();
             } catch (Exception error) { call.reject("Cannot save workspace", error); }

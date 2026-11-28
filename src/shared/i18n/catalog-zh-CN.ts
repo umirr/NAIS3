@@ -1,6 +1,10 @@
 import type { MessageCatalog } from './catalog-ko'
 
 export const ZH_CN = {
+  'mobile.importNais': '导入兼容 PC 的备份 (.nais)',
+  'mobile.finishQueueBeforeRestore': '请先完成或取消生成任务，再恢复备份。',
+  'mobile.selectLibraryBeforeRestore': '请先选择用于恢复图像的图库文件夹。',
+  'mobile.restoreDescription': '恢复预设、场景和参考。图库图像保存到已配置文件夹的新子文件夹中。保留现有生成图像和账户，完成后重新加载界面。',
   'mobile.noFolder': '请选择存储文件夹',
   'mobile.folderAccessFailed': '无法访问文件夹，请在设置中重新选择。',
   'mobile.refreshFolder': '刷新文件夹',

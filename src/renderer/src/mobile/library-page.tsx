@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useT } from '../lib/i18n'
 import { nativeStorage, nativeImageUrl, type NativeFolderEntry } from './native-storage'
+import { readBrowserState } from '../browser/browser-db'
 
 export function MobileLibraryPage(): React.JSX.Element {
   const t = useT()
@@ -17,6 +18,11 @@ export function MobileLibraryPage(): React.JSX.Element {
     try {
       const { library } = await nativeStorage.getFolders()
       const result = library ? await nativeStorage.listFolder({ uri: library }) : { entries: [] }
+      const workspace = await readBrowserState()
+      for (const image of workspace.libraryImages) {
+        if (!result.entries.some((entry) => nativeImageUrl(entry.uri) === image.filePath))
+          result.entries.push({ uri: image.filePath, name: image.name, mime: 'image/*', size: 0 })
+      }
       if (current !== sequence.current) return
       setEntries(
         result.entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))

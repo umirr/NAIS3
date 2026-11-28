@@ -121,7 +121,7 @@ final class GenerationEngine {
         for (int i = 0; i < jobs().length(); i++) {
             JSONObject job = jobs().getJSONObject(i);
             for (int j = 0; j < ids.length(); j++) if (job.getString("id").equals(ids.getString(j))) {
-                if (job.getString("state").equals("pending")) job.put("state", "cancelled");
+                if (job.getString("state").equals("pending") || job.getString("state").equals("failed")) job.put("state", "cancelled");
                 else if (job.getString("state").equals("running")) {
                     job.put("cancelRequested", true);
                     HttpURLConnection active = connection;

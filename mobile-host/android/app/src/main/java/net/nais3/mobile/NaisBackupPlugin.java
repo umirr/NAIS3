@@ -3,6 +3,7 @@ package net.nais3.mobile;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
+import android.provider.DocumentsContract;
 import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -158,7 +159,9 @@ public class NaisBackupPlugin extends Plugin {
             try {
                 File root = new File(getContext().getNoBackupFilesDir(), "backup-imports/" + id);
                 String workspace = new SecureSnapshot(getContext()).read();
-                if (workspace != null && workspace.contains("backup-imports/" + id)) throw new IOException("Backup stage is in use");
+                String recovery = new SecureSnapshot(getContext(), "before-import").read();
+                if ((workspace != null && workspace.contains("backup-imports/" + id)) ||
+                    (recovery != null && recovery.contains("backup-imports/" + id))) throw new IOException("Backup stage is in use");
                 remove(root);
                 call.resolve();
             } catch (Exception error) { call.reject("Cannot discard backup stage", error); }
@@ -168,6 +171,70 @@ public class NaisBackupPlugin extends Plugin {
     private static void safePath(String path) throws IOException {
         if (path.isEmpty() || path.contains("\\") || path.contains("\0") || path.startsWith("/") || path.matches("^[a-zA-Z]:.*") ||
             Arrays.asList(path.split("/")).contains("..")) throw new IOException("Unsafe archive path");
+    }
+
+    @PluginMethod public void stageLibraryImages(PluginCall call) {
+        String id = call.getString("stageId", "");
+        if (!id.matches("[a-f0-9-]{36}")) { call.reject("Invalid backup stage"); return; }
+        io.execute(() -> {
+            Uri created = null;
+            try {
+                String selected = getContext().getSharedPreferences("output-folders", 0).getString("library", null);
+                if (selected == null) throw new IOException("Select a library folder before restoring images");
+                Uri tree = Uri.parse(selected);
+                boolean writable = getContext().getContentResolver().getPersistedUriPermissions().stream()
+                    .anyMatch(p -> p.getUri().equals(tree) && p.isReadPermission() && p.isWritePermission());
+                if (!writable) throw new IOException("Library folder access is unavailable");
+                File root = new File(getContext().getNoBackupFilesDir(), "backup-imports/" + id);
+                JSONObject manifest = readObject(new File(root, "manifest.json"));
+                JSONArray tables = manifest.getJSONArray("tables");
+                boolean hasLibrary = false;
+                for (int i = 0; i < tables.length(); i++) if (tables.getString(i).equals("library_images")) hasLibrary = true;
+                JSONObject locations = new JSONObject();
+                if (hasLibrary) {
+                    JSONArray rows = new JSONArray(readText(new File(root, "data/tables/library_images.json")));
+                    if (rows.length() > 0) {
+                        Uri parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree));
+                        created = DocumentsContract.createDocument(getContext().getContentResolver(), parent,
+                            DocumentsContract.Document.MIME_TYPE_DIR, "NAIS3-restored-" + id);
+                        if (created == null) throw new IOException("Cannot create library restore folder");
+                        JSONObject checksums = readObject(new File(root, "checksums.json"));
+                        for (int i = 0; i < rows.length(); i++) {
+                            JSONObject row = rows.getJSONObject(i);
+                            String asset = row.getJSONObject("file_path").getString("__asset");
+                            safePath(asset);
+                            if (!asset.startsWith("assets/")) throw new IOException("Invalid library asset");
+                            File source = new File(root, asset);
+                            String extension = asset.substring(asset.lastIndexOf('.')).toLowerCase(Locale.ROOT);
+                            if (!extension.matches("\\.[a-z0-9]{1,10}")) extension = ".bin";
+                            String mime = extension.equals(".png") ? "image/png" : extension.equals(".webp") ? "image/webp" :
+                                extension.equals(".jpg") || extension.equals(".jpeg") ? "image/jpeg" : "application/octet-stream";
+                            Uri outputUri = DocumentsContract.createDocument(getContext().getContentResolver(), created, mime,
+                                "library-" + row.getLong("id") + extension);
+                            if (outputUri == null) throw new IOException("Cannot create restored image");
+                            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                            long bytes = 0;
+                            try (InputStream input = new FileInputStream(source);
+                                 OutputStream output = getContext().getContentResolver().openOutputStream(outputUri, "w")) {
+                                if (output == null) throw new IOException("Cannot write restored image");
+                                byte[] buffer = new byte[32768]; int n;
+                                while ((n = input.read(buffer)) != -1) { output.write(buffer, 0, n); digest.update(buffer, 0, n); bytes += n; }
+                            }
+                            StringBuilder hash = new StringBuilder();
+                            for (byte b : digest.digest()) hash.append(String.format(Locale.ROOT, "%02x", b & 255));
+                            JSONObject expected = checksums.getJSONObject(asset);
+                            if (bytes != expected.getLong("bytes") || !hash.toString().equals(expected.getString("sha256"))) throw new IOException("Restored image checksum mismatch");
+                            locations.put("library_images:" + row.getLong("id"), outputUri.toString());
+                        }
+                    }
+                }
+                call.resolve(new JSObject().put("locations", locations)
+                    .put("folderUri", created == null ? JSONObject.NULL : created.toString()));
+            } catch (Exception error) {
+                if (created != null) try { DocumentsContract.deleteDocument(getContext().getContentResolver(), created); } catch (Exception ignored) { }
+                call.reject("Cannot stage library images", error);
+            }
+        });
     }
     private static void check(String path, JSONObject checksums, JSONObject entries) throws Exception {
         safePath(path);

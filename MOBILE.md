@@ -112,3 +112,16 @@ to a restore button yet. The destination policy for restored library assets need
 confirmation before committing files to the selected library folder. The earlier pause
 was lifted by the user. Atomic workspace commit and export mapping remain outstanding.
 
+
+## Backup import screen connected (2026-11-28)
+
+The user selected restoration under the configured library folder. Import now stages
+new library images in a unique subfolder and preserves reference assets privately.
+Settings show a validated-backup confirmation before replacement. The serialized workspace
+write captures an encrypted before-import snapshot before the atomic replacement.
+Pending/failed/running generation jobs block restoration. A reload hydrates stores after
+success. Library view includes restored catalog images. Device picker/storage/recovery
+verification, cleanup of uncommitted library folders after a later snapshot failure,
+and backup export remain outstanding. A failed post-copy commit can leave a new restore
+subfolder, but does not overwrite existing files or mark workspace restoration complete.
+

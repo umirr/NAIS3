@@ -25,8 +25,8 @@ export async function installMobileStorage(): Promise<void> {
       }
       return parsed
     },
-    async write(state) {
-      await nativeStorage.writeSnapshot({ value: JSON.stringify(state) })
+    async write(state, options) {
+      await nativeStorage.writeSnapshot({ value: JSON.stringify(state), ...options })
     }
   })
 }

@@ -24,7 +24,7 @@ final class SecureSnapshot {
     }
 
     SecureSnapshot(Context context, String name) {
-        if (!name.equals("workspace") && !name.equals("queue")) throw new IllegalArgumentException("Invalid snapshot name");
+        if (!name.equals("workspace") && !name.equals("queue") && !name.equals("before-import")) throw new IllegalArgumentException("Invalid snapshot name");
         file = new AtomicFile(new File(context.getNoBackupFilesDir(), name + ".enc"));
     }
 

@@ -12,6 +12,10 @@ export interface NativeBackupStage {
 export const nativeBackup = registerPlugin<{
   chooseArchive(): Promise<NativeBackupStage>
   discardStage(options: { stageId: string }): Promise<void>
+  stageLibraryImages(options: { stageId: string }): Promise<{
+    locations: Record<string, string>
+    folderUri: string | null
+  }>
 }>('NaisBackup')
 
 /** Convert only the native bridge's verified metadata; full image bytes stay on disk. */

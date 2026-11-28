@@ -101,7 +101,7 @@ let databasePromise: Promise<IDBDatabase> | null = null
 let mutationQueue: Promise<unknown> = Promise.resolve()
 let nativeStore: {
   read(): Promise<BrowserState | null>
-  write(state: BrowserState): Promise<void>
+  write(state: BrowserState, options?: { backupBeforeWrite?: boolean }): Promise<void>
 } | null = null
 
 /** Install before renderer hydration; Android does not persist workspace data in IndexedDB. */
@@ -146,12 +146,13 @@ export async function readBrowserState(): Promise<BrowserState> {
 }
 
 export function mutateBrowserState<T>(
-  mutator: (state: BrowserState) => T | Promise<T>
+  mutator: (state: BrowserState) => T | Promise<T>,
+  options?: { backupBeforeWrite?: boolean }
 ): Promise<T> {
   const operation = mutationQueue.then(async () => {
     const state = await readBrowserState()
     const result = await mutator(state)
-    if (nativeStore) await nativeStore.write(state)
+    if (nativeStore) await nativeStore.write(state, options)
     else await transaction<IDBValidKey>('readwrite', (store) => store.put(state, STATE_KEY))
     return result
   })

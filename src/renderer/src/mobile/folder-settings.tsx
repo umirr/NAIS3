@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useT } from '../lib/i18n'
 import { nativeStorage, type FolderPurpose } from './native-storage'
+import { MobileBackupSettings } from './backup-settings'
 
 export function MobileFolderSettings(): React.JSX.Element {
   const t = useT()
@@ -50,6 +51,7 @@ export function MobileFolderSettings(): React.JSX.Element {
         </div>
       ))}
       {error && <p role="alert">{t('mobile.folderAccessFailed')}</p>}
+      <MobileBackupSettings />
     </div>
   )
 }
