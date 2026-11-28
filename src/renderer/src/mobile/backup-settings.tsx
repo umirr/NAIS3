@@ -48,7 +48,9 @@ export function MobileBackupSettings(): React.JSX.Element {
     try {
       await idle()
       const { backup, locations } = decodeNativeBackupStage(stage)
-      const library = await nativeBackup.stageLibraryImages({ stageId: stage.stageId })
+      const library = backup.tables.library_images?.length
+        ? await nativeBackup.stageLibraryImages({ stageId: stage.stageId })
+        : { locations: {} }
       for (const [key, uri] of Object.entries(library.locations)) locations.set(key, uri)
       await mutateBrowserState(
         (current) => {
