@@ -98,6 +98,7 @@
 }
 .mobile-prompt {
   height: max(65dvh, 540px);
+  min-height: 360px;
   min-width: 0;
   display: flex;
   flex-direction: column;
