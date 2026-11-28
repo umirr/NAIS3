@@ -32,6 +32,8 @@ jobs:
         working-directory: mobile-host
       - run: bash gradlew assembleDebug lintDebug
         working-directory: mobile-host/android
+        env:
+          NAIS_ANDROID_VERSION_CODE: ${{ github.run_number }}
       - uses: actions/upload-artifact@v7
         if: always()
         with:

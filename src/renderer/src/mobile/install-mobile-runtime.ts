@@ -130,7 +130,7 @@ export async function installMobileRuntime(): Promise<void> {
   })
 
   async function invoke(channel: keyof IpcInvokeMap, request: unknown): Promise<unknown> {
-    if (channel === 'app:version') return { version: '0.1.0-android-development' }
+    if (channel === 'app:version') return { version: '1.1-android-development' }
     if (channel === 'db:status') return { version: 1, path: 'Android private workspace' }
     if (channel === 'queue:status') {
       const status = await generation.status()
