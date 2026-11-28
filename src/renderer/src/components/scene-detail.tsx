@@ -157,19 +157,25 @@ export function SceneDetail({
       <div
         className={cn(
           'flex items-center gap-2 border-b border-line px-3 py-2',
-          mobile && 'flex-wrap'
+          mobile && 'mobile-scene-detail-header'
         )}
       >
-        <Button size="sm" variant="ghost" className="gap-1" onClick={() => select(null)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className={cn('gap-1', mobile && 'mobile-detail-back')}
+          onClick={() => select(null)}
+        >
           <ArrowLeft size={15} /> {t('ui.sceneList')}
         </Button>
         <input
           className="min-w-0 flex-1 truncate rounded-md bg-transparent px-2 py-1 text-[15px] font-medium outline-none focus:bg-surface-2"
           value={scene.name}
+          aria-label={t('ui.sceneName')}
           onChange={(e) => void update(scene.id, { name: e.target.value })}
         />
         <ResolutionPicker
-          className="w-48"
+          className={mobile ? 'mobile-detail-resolution w-full' : 'w-48'}
           disabled={!!source}
           width={scene.width}
           height={scene.height}
@@ -179,14 +185,19 @@ export function SceneDetail({
         <Button
           size="sm"
           variant="accent"
-          className="gap-1"
+          className={cn('gap-1', mobile && 'mobile-detail-generate')}
           title={t('ui.generate1ImageOfThisSceneNow')}
           onClick={() => void generateOne(scene.id)}
         >
           <Play size={13} /> {t('ui.generate')}
         </Button>
         {/* 예약 +/- — 현재 선택된 출연 기준 (씬 목록 카드와 동일) */}
-        <div className="flex items-center gap-0.5 rounded-full bg-surface-2 p-0.5">
+        <div
+          className={cn(
+            'flex items-center gap-0.5 rounded-full bg-surface-2 p-0.5',
+            mobile && 'mobile-detail-reserve'
+          )}
+        >
           <button
             className="grid size-6 place-items-center rounded-full text-muted hover:bg-paper disabled:opacity-30"
             disabled={(scene.reserves[activeCastId] ?? 0) === 0}
@@ -265,7 +276,12 @@ export function SceneDetail({
           />
         </div>
 
-        <div className="mt-4 mb-2 flex items-center gap-2 text-[12px] text-muted">
+        <div
+          className={cn(
+            'mt-4 mb-2 flex items-center gap-2 text-[12px] text-muted',
+            mobile && 'mobile-detail-image-toolbar'
+          )}
+        >
           <span className="font-medium text-ink">{t('ui.generatedImages')}</span>
           <span>{t('ui.valueImages', imagesTotal.toLocaleString())}</span>
           <div className="flex-1" />
