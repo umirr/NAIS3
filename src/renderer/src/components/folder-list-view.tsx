@@ -75,12 +75,13 @@ function GridItem({
   disabled: boolean
   children: React.ReactNode
 }): React.JSX.Element {
-  const sortable = useSortable({ id, disabled })
+  const mobile = import.meta.env.VITE_MOBILE === '1'
+  const sortable = useSortable({ id, disabled: disabled || mobile })
   return (
     <div
       ref={sortable.setNodeRef}
       style={dndStyle(sortable, true)}
-      className={cn('touch-none', sortable.isDragging && 'z-20 opacity-70')}
+      className={cn(!mobile && 'touch-none', sortable.isDragging && 'z-20 opacity-70')}
       {...(disabled ? {} : sortable.attributes)}
       {...(disabled ? {} : sortable.listeners)}
     >

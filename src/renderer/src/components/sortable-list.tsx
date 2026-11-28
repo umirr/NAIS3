@@ -66,8 +66,9 @@ export function SortableRow({
   onTap?: () => void
   children: React.ReactNode
 }): React.JSX.Element {
-  const sortable = useSortable({ id })
-  const downPos = useRef<{ x: number; y: number } | null>(null)
+  const mobile = import.meta.env.VITE_MOBILE === '1'
+  const sortable = useSortable({ id, disabled: mobile })
+  const downPos = useRef<{ x: number; y: number; at: number } | null>(null)
   const style: CSSProperties = {
     // x는 고정 — 세로 목록에서 가로로 튀어나가 가로 스크롤이 생기는 것 방지
     transform: sortable.transform ? `translate3d(0, ${sortable.transform.y}px, 0)` : undefined,
@@ -80,17 +81,19 @@ export function SortableRow({
     <div
       ref={sortable.setNodeRef}
       style={style}
-      className={cn('flex touch-none items-center', className)}
+      className={cn('flex items-center', !mobile && 'touch-none', className)}
       {...sortable.attributes}
       {...sortable.listeners}
       // capture 단계에서 좌표 기록 (dnd 리스너보다 먼저, 덮어쓰지 않음)
       onPointerDownCapture={(e) => {
-        downPos.current = { x: e.clientX, y: e.clientY }
+        downPos.current = { x: e.clientX, y: e.clientY, at: Date.now() }
       }}
+      onPointerCancel={() => { downPos.current = null }}
       onPointerUp={(e) => {
         const d = downPos.current
         downPos.current = null
         if (!onTap || !d || sortable.isDragging) return
+        if (mobile && Date.now() - d.at >= 500) return
         // 5px 미만 이동 = 탭. 내부 인터랙션 요소(버튼/인풋)에서 시작한 클릭은 제외
         if (Math.abs(e.clientX - d.x) > 5 || Math.abs(e.clientY - d.y) > 5) return
         if ((e.target as HTMLElement).closest('button,input,[data-no-tap]')) return
