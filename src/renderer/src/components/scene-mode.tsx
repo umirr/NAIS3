@@ -529,7 +529,7 @@ function SceneGrid({ mobile = false }: { mobile?: boolean }): React.JSX.Element 
           >
             <div
               className="grid gap-3"
-              style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+              style={{ gridTemplateColumns: `repeat(${mobile ? 2 : columns}, minmax(0, 1fr))` }}
             >
               {scenes.map((scene) => (
                 <SceneCard
@@ -911,7 +911,12 @@ const SceneCard = memo(function SceneCard({
               const shown = badges.slice(0, 4)
               const rest = badges.slice(4)
               return (
-                <div className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1">
+                <div
+                  className={cn(
+                    'absolute left-1.5 flex flex-col items-start gap-1',
+                    mobile ? 'top-16' : 'top-1.5'
+                  )}
+                >
                   {shown.map((b) => (
                     <span
                       key={b.key}
@@ -991,10 +996,33 @@ const SceneCard = memo(function SceneCard({
             </Popover>
           )}
 
-          {/* 하단 그라디언트 + 이름 + 예약 +/- */}
+          {mobile && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/85 via-black/55 to-transparent px-2 pb-4 pt-2 pr-9">
+              {editMode ? (
+                <input
+                  className="pointer-events-auto w-full rounded bg-white/15 px-1 py-0.5 text-[13px] font-medium text-white outline-none"
+                  value={scene.name}
+                  aria-label={t('ui.sceneName')}
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onChange={(e) => void update(scene.id, { name: e.target.value })}
+                />
+              ) : (
+                <div className="line-clamp-2 break-words text-left text-[13px] font-semibold leading-5 text-white drop-shadow">
+                  {scene.name}
+                </div>
+              )}
+            </div>
+          )}
+          {/* 이름은 모바일에서 상단, 예약 조절은 하단 유지 */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pb-1.5 pt-6">
-            <div className="pointer-events-auto flex items-end justify-between gap-1">
-              <div className="min-w-0">
+            <div
+              className={cn(
+                'pointer-events-auto flex items-end gap-1',
+                mobile ? 'justify-end' : 'justify-between'
+              )}
+            >
+              <div hidden={mobile} className="min-w-0">
                 {editMode ? (
                   <input
                     className="w-full truncate rounded bg-white/15 px-1 py-0.5 text-[13px] font-medium text-white outline-none placeholder:text-white/50 focus:bg-white/25"
