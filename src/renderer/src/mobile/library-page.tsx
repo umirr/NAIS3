@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useT } from '../lib/i18n'
 import { nativeStorage, nativeImageUrl, type NativeFolderEntry } from './native-storage'
 import { readBrowserState } from '../browser/browser-db'
+import { ImageContextMenu } from '../components/image-context-menu'
 
 export function MobileLibraryPage(): React.JSX.Element {
   const t = useT()
@@ -66,7 +67,9 @@ export function MobileLibraryPage(): React.JSX.Element {
             {t('mobile.imageList')}
           </button>
           <div className="mobile-image-stage">
-            <img src={nativeImageUrl(current.uri)} alt={current.name} />
+            <ImageContextMenu filePath={nativeImageUrl(current.uri)} hideLibraryAdd>
+              <img src={nativeImageUrl(current.uri)} alt={current.name} />
+            </ImageContextMenu>
           </div>
           <div className="mobile-image-controls">
             <button
@@ -92,18 +95,16 @@ export function MobileLibraryPage(): React.JSX.Element {
         <>
           <div className="grid grid-cols-3 gap-2">
             {entries.slice(0, limit).map((entry) => (
-              <button
-                key={entry.uri}
-                onClick={() => setSelected(entry.uri)}
-                aria-label={entry.name}
-              >
-                <img
-                  className="aspect-square w-full rounded-md object-cover"
-                  src={nativeImageUrl(entry.uri)}
-                  alt={entry.name}
-                  loading="lazy"
-                />
-              </button>
+              <ImageContextMenu key={entry.uri} filePath={nativeImageUrl(entry.uri)} hideLibraryAdd>
+                <button onClick={() => setSelected(entry.uri)} aria-label={entry.name}>
+                  <img
+                    className="aspect-square w-full rounded-md object-cover"
+                    src={nativeImageUrl(entry.uri)}
+                    alt={entry.name}
+                    loading="lazy"
+                  />
+                </button>
+              </ImageContextMenu>
             ))}
           </div>
           {!busy && entries.length === 0 && <p>{t('mobile.noImages')}</p>}

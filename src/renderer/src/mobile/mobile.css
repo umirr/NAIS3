@@ -16,6 +16,18 @@
   height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.mobile-page[aria-label] > .mobile-scene {
+  height: auto;
+  min-height: 100%;
+}
+.mobile-scene > div {
+  flex-shrink: 0;
+}
+.mobile-scene [data-mobile-scene-scroll] {
+  overflow: visible;
+  flex: none;
 }
 .mobile-page[hidden] {
   display: none;
@@ -87,6 +99,47 @@
 .mobile-prompt {
   height: max(65dvh, 540px);
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.mobile-prompt > :first-child {
+  flex: 1;
+  min-height: 0;
+}
+.mobile-scene-prompt {
+  height: 224px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+}
+.mobile-height-controls {
+  display: flex;
+  height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+}
+.mobile-height-controls button {
+  width: 48px;
+  height: 44px;
+}
+.mobile-height-controls [role='separator'] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  flex: 1;
+  touch-action: none;
+  cursor: row-resize;
+}
+.mobile-height-controls span {
+  width: 48px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line);
+}
+.mobile-page img {
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 .mobile-preview {
   display: flex;

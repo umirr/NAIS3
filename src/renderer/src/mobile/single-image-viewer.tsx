@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useT } from '../lib/i18n'
 
 export interface ViewerImage {
@@ -13,12 +13,14 @@ export function SingleImageViewer({
   images,
   loading,
   total = images.length,
-  loadMore
+  loadMore,
+  renderImage
 }: {
   images: ViewerImage[]
   loading: boolean
   total?: number
   loadMore?: () => Promise<ViewerImage | null>
+  renderImage?: (image: ViewerImage) => ReactNode
 }): React.JSX.Element {
   const t = useT()
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -51,7 +53,11 @@ export function SingleImageViewer({
     <div className="mobile-image-viewer">
       <div className="mobile-image-stage">
         {current ? (
-          <img src={current.url} alt={current.label} draggable={false} />
+          renderImage ? (
+            renderImage(current)
+          ) : (
+            <img src={current.url} alt={current.label} draggable={false} />
+          )
         ) : (
           <p>{loading ? t('ui.loading') : t('mobile.noImages')}</p>
         )}

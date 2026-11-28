@@ -47,6 +47,7 @@ export function ImageContextMenu({
   extra?: React.ReactNode
   children: React.ReactNode
 }): React.JSX.Element {
+  const mobile = import.meta.env.VITE_MOBILE === '1'
   const t = useT()
   const startInpaint = useGenerationStore((s) => s.startInpaintFromPath)
   const showMeta = useMetadataStore((s) => s.show)
@@ -55,15 +56,19 @@ export function ImageContextMenu({
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         <RegenerateMenuItem filePath={filePath} />
-        <ContextMenuItem onSelect={() => void setI2iSource(filePath)}>
-          <ImageIcon size={13} className="text-hue-indigo" /> I2I
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={() => void startInpaint(filePath)}>
-          <Layers size={13} className="text-hue-pink" /> {t('ui.inpaint')}
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={() => void openInDirector(filePath)}>
-          <Wand2 size={13} className="text-hue-violet" /> {t('ui.openInDirectorTools')}
-        </ContextMenuItem>
+        {!mobile && (
+          <>
+            <ContextMenuItem onSelect={() => void setI2iSource(filePath)}>
+              <ImageIcon size={13} className="text-hue-indigo" /> I2I
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => void startInpaint(filePath)}>
+              <Layers size={13} className="text-hue-pink" /> {t('ui.inpaint')}
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => void openInDirector(filePath)}>
+              <Wand2 size={13} className="text-hue-violet" /> {t('ui.openInDirectorTools')}
+            </ContextMenuItem>
+          </>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={() => void showMeta({ filePath })}>
           <FileText size={13} className="text-hue-sky" /> {t('ui.viewMetadata')}
@@ -90,34 +95,40 @@ export function ImageContextMenu({
         >
           <Copy size={13} className="text-hue-sky" /> {t('ui.copySeedOnly')}
         </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={async () => {
-            const { copied } = await window.nais.invoke('images:copy', { filePath })
-            if (copied) toast(t('ui.copiedToClipboard'), 'success')
-          }}
-        >
-          <Copy size={13} className="text-hue-teal" /> {t('ui.copyImage')}
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={() => void window.nais.invoke('images:saveAs', { filePath })}>
-          <Download size={13} className="text-hue-emerald" /> {t('ui.saveAs')}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={() => void window.nais.invoke('images:showInFolder', { filePath })}
-        >
-          <FolderOpen size={13} className="text-hue-amber" /> {t('ui.showInFileExplorer')}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        {!hideLibraryAdd && (
-          <ContextMenuItem onSelect={() => void addToLibrary([filePath])}>
-            <Library size={13} className="text-hue-fuchsia" /> {t('ui.addToLibrary')}
-          </ContextMenuItem>
+        {!mobile && (
+          <>
+            <ContextMenuItem
+              onSelect={async () => {
+                const { copied } = await window.nais.invoke('images:copy', { filePath })
+                if (copied) toast(t('ui.copiedToClipboard'), 'success')
+              }}
+            >
+              <Copy size={13} className="text-hue-teal" /> {t('ui.copyImage')}
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() => void window.nais.invoke('images:saveAs', { filePath })}
+            >
+              <Download size={13} className="text-hue-emerald" /> {t('ui.saveAs')}
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() => void window.nais.invoke('images:showInFolder', { filePath })}
+            >
+              <FolderOpen size={13} className="text-hue-amber" /> {t('ui.showInFileExplorer')}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            {!hideLibraryAdd && (
+              <ContextMenuItem onSelect={() => void addToLibrary([filePath])}>
+                <Library size={13} className="text-hue-fuchsia" /> {t('ui.addToLibrary')}
+              </ContextMenuItem>
+            )}
+            <ContextMenuItem onSelect={() => void addImagesToRefs('vibe', [filePath])}>
+              <Sparkles size={13} className="text-hue-violet" /> {t('ui.addAsVibeReference')}
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => void addImagesToRefs('charref', [filePath])}>
+              <ImageUp size={13} className="text-hue-sky" /> {t('ui.addAsCharacterReference')}
+            </ContextMenuItem>
+          </>
         )}
-        <ContextMenuItem onSelect={() => void addImagesToRefs('vibe', [filePath])}>
-          <Sparkles size={13} className="text-hue-violet" /> {t('ui.addAsVibeReference')}
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={() => void addImagesToRefs('charref', [filePath])}>
-          <ImageUp size={13} className="text-hue-sky" /> {t('ui.addAsCharacterReference')}
-        </ContextMenuItem>
         {extra}
         {onDelete && (
           <>

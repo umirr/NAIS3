@@ -1,6 +1,9 @@
 import type { MessageCatalog } from './catalog-ko'
 
 export const EN = {
+  'mobile.resizePrompt': 'Resize prompt height',
+  'mobile.expandPrompt': 'Expand prompt area',
+  'mobile.shrinkPrompt': 'Shrink prompt area',
   'mobile.importNais': 'Import PC-compatible backup (.nais)',
   'mobile.finishQueueBeforeRestore': 'Complete or cancel generation jobs before restoring.',
   'mobile.selectLibraryBeforeRestore': 'Select a library folder before restoring images.',

@@ -125,3 +125,17 @@ verification, cleanup of uncommitted library folders after a later snapshot fail
 and backup export remain outstanding. A failed post-copy commit can leave a new restore
 subfolder, but does not overwrite existing files or mark workspace restoration complete.
 
+
+## Touch usability corrections (2026-11-28)
+
+Main/scene prompt panels have explicit touch height controls; main prompt splitters use
+pointer events with cancellation cleanup. Scene cards disable desktop drag sorting on
+mobile so touch panning and Radix long-press menus do not compete. Scene detail uses
+the page scroll container and a stable scrollbar gutter. Prompt tags establish a touch
+target before the Radix long-press timer; scene/library images use the shared menu.
+Unsupported image operations (director, i2i/inpaint, image clipboard/save/explorer and
+reference/library transfer) are hidden in mobile builds until their native paths exist.
+Regenerate/metadata/seed actions retain existing metadata errors for images without
+indexed metadata. Height controls and existing menu tests pass; Android hardware scroll,
+long-press selection and the reported flicker still require real-device verification.
+

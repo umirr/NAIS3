@@ -232,6 +232,14 @@ export function PromptTagHover({
       <ContextMenuTrigger asChild disabled={hover === null && menu === null}>
         <div
           className="contents"
+          onPointerDownCapture={(event) => {
+            if (event.pointerType === 'mouse' || open.current) return
+            const target = locate(event.clientX, event.clientY)
+            flushSync(() => {
+              setMenu(target)
+              setHover(target?.start ?? null)
+            })
+          }}
           onMouseMove={(event) => {
             if (open.current) return
             const next = locate(event.clientX, event.clientY)?.start ?? null

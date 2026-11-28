@@ -1,6 +1,9 @@
 import type { MessageCatalog } from './catalog-ko'
 
 export const ZH_CN = {
+  'mobile.resizePrompt': '调整提示词高度',
+  'mobile.expandPrompt': '增大提示词区域',
+  'mobile.shrinkPrompt': '缩小提示词区域',
   'mobile.importNais': '导入兼容 PC 的备份 (.nais)',
   'mobile.finishQueueBeforeRestore': '请先完成或取消生成任务，再恢复备份。',
   'mobile.selectLibraryBeforeRestore': '请先选择用于恢复图像的图库文件夹。',

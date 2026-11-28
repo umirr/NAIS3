@@ -70,7 +70,7 @@ export function SceneMode({ mobile = false }: { mobile?: boolean } = {}): React.
 
   const selected = scenes.find((s) => s.id === selectedId) ?? null
   if (selected) return <SceneDetail key={selected.id} scene={selected} mobile={mobile} />
-  return <SceneGrid />
+  return <SceneGrid mobile={mobile} />
 }
 
 /** NAIS2식 프리셋 드롭다운 — 현재 프리셋 표시 + 전환/추가/이름변경/삭제 */
@@ -337,7 +337,7 @@ function IconBtn({
 // 씬 그리드 스크롤 위치 — 다른 페이지/씬 상세를 다녀와도 위치 복원 (언마운트돼도 유지)
 let savedGridScroll = 0
 
-function SceneGrid(): React.JSX.Element {
+function SceneGrid({ mobile = false }: { mobile?: boolean }): React.JSX.Element {
   const scenes = useScenesStore((s) => s.scenes)
   const activePresetId = useScenesStore((s) => s.activePresetId)
   const create = useScenesStore((s) => s.create)
@@ -535,6 +535,7 @@ function SceneGrid(): React.JSX.Element {
                 <SceneCard
                   key={scene.id}
                   scene={scene}
+                  mobile={mobile}
                   generating={scene.id === generatingSceneId}
                 />
               ))}
@@ -803,10 +804,12 @@ function reserveBadges(
 /* eslint-disable react-hooks/refs */
 const SceneCard = memo(function SceneCard({
   scene,
-  generating
+  generating,
+  mobile = false
 }: {
   scene: Scene
   generating: boolean
+  mobile?: boolean
 }): React.JSX.Element {
   const live = useGenerationStore((s) => (generating ? s.previewPng : null))
   const editMode = useScenesStore((s) => s.editMode)
@@ -822,7 +825,7 @@ const SceneCard = memo(function SceneCard({
   const setReserve = useScenesStore((s) => s.setReserve)
   const casts = useScenesStore((s) => s.casts)
   const activeCastId = useScenesStore((s) => s.activeCastId)
-  const sortable = useSortable({ id: `scene-${scene.id}` })
+  const sortable = useSortable({ id: `scene-${scene.id}`, disabled: mobile })
   const t = useT()
 
   // +/- 는 현재 선택된 출연의 예약을 조작하므로 그 출연의 수만 표시 (배지가 전체 내역 담당)
@@ -864,7 +867,8 @@ const SceneCard = memo(function SceneCard({
           {...sortable.attributes}
           {...sortable.listeners}
           className={cn(
-            'group relative touch-none overflow-hidden rounded-lg border bg-surface-2 transition',
+            'group relative overflow-hidden rounded-lg border bg-surface-2 transition',
+            !mobile && 'touch-none',
             editMode && checked ? 'border-accent ring-2 ring-accent/40' : 'border-line',
             sortable.isDragging && 'shadow-xl'
           )}

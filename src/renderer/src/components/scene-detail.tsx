@@ -12,7 +12,7 @@ import { toast } from '../stores/toast-store'
 import { cn } from '../lib/utils'
 import { ImageContextMenu } from './image-context-menu'
 import { Lightbox } from './lightbox'
-import { PromptEditor } from './prompt-editor'
+import { ScenePromptEditor } from '../mobile/scene-prompt-editor'
 import { ReserveCount } from './reserve-count'
 import { Button } from './ui/button'
 import { useT } from '../lib/i18n'
@@ -232,10 +232,14 @@ export function SceneDetail({
       )}
 
       {/* 스크롤 영역: 프롬프트 + 생성 이미지. scrollbar-gutter로 스크롤바 등장/소멸 시 밀림 방지 */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 no-scrollbar">
+      <div
+        data-mobile-scene-scroll={mobile ? '' : undefined}
+        className="min-h-0 flex-1 overflow-y-auto p-3 no-scrollbar"
+      >
         <div className="grid gap-2">
           {/* resize-y: 우하단 핸들로 세로 크기 조절 (F10) */}
-          <PromptEditor
+          <ScenePromptEditor
+            mobile={mobile}
             value={scene.prompt}
             onValueChange={(v) => void update(scene.id, { prompt: v })}
             placeholder={t('ui.scenePrompt')}
@@ -249,7 +253,8 @@ export function SceneDetail({
               {t('ui.negativeUnusedAtMediumEffort')}
             </p>
           )}
-          <PromptEditor
+          <ScenePromptEditor
+            mobile={mobile}
             value={scene.negativePrompt}
             onValueChange={(v) => void update(scene.id, { negativePrompt: v })}
             placeholder={t('ui.sceneNegativePrompt')}
@@ -315,6 +320,11 @@ export function SceneDetail({
 
         {mobile ? (
           <SingleImageViewer
+            renderImage={(image) => (
+              <ImageContextMenu filePath={image.url}>
+                <img src={image.url} alt={image.label} draggable={false} />
+              </ImageContextMenu>
+            )}
             key={`${scene.id}:${favoritesOnly}`}
             images={images.map((image) => ({
               id: image.id,

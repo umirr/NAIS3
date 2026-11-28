@@ -25,6 +25,7 @@ import { MobileSettingsPage, SettingsDialog } from './components/token-dialog'
 import { MobileShell } from './mobile/mobile-shell'
 import { MobileLibraryPage } from './mobile/library-page'
 import { isAndroid } from './mobile/native-storage'
+import { TouchHeight } from './mobile/touch-height'
 import { TextPromptHost } from './components/text-prompt-host'
 import { FragmentEditorDialog } from './components/fragment-editor-dialog'
 import { WebSearchMode } from './components/web-search-mode'
@@ -151,6 +152,7 @@ export default function App({ mobile = false }: { mobile?: boolean } = {}): Reac
               <div className="mobile-generation">
                 <div className="mobile-prompt">
                   <PromptPanel />
+                  <TouchHeight />
                 </div>
                 <div className="mobile-preview">
                   <PreviewPane />
@@ -158,7 +160,7 @@ export default function App({ mobile = false }: { mobile?: boolean } = {}): Reac
               </div>
             ),
             scene: (
-              <div className="flex h-full min-h-0 flex-col">
+              <div className="mobile-scene flex min-h-0 flex-col">
                 <SceneMode mobile />
               </div>
             ),

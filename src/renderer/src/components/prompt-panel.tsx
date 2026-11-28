@@ -115,22 +115,24 @@ export function PromptPanel(): React.JSX.Element {
     return v >= 0.15 && v <= 0.85 ? v : 0.62
   })
   const bothOpen = !posCollapsed && !negCollapsed
-  const startPromptResize = (e: React.MouseEvent): void => {
+  const startPromptResize = (e: React.PointerEvent): void => {
     e.preventDefault()
     const area = promptAreaRef.current
     if (!area) return
-    const onMove = (ev: MouseEvent): void => {
+    const onMove = (ev: PointerEvent): void => {
       const rect = area.getBoundingClientRect()
       const r = Math.min(0.85, Math.max(0.15, (ev.clientY - rect.top) / rect.height))
       setPosRatio(r)
     }
     const onUp = (): void => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
       localStorage.setItem('prompt_pos_ratio', String(posRatioRef.current))
     }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
   }
   const posRatioRef = useRef(posRatio)
   useEffect(() => {
@@ -337,8 +339,8 @@ export function PromptPanel(): React.JSX.Element {
         {/* 세로 비율 조절 스플리터 (둘 다 펼쳐졌을 때만) */}
         {bothOpen && (
           <div
-            className="group -my-1 flex h-2 shrink-0 cursor-row-resize items-center justify-center"
-            onMouseDown={startPromptResize}
+            className="group -my-1 flex h-2 shrink-0 cursor-row-resize touch-none items-center justify-center"
+            onPointerDown={startPromptResize}
           >
             <div className="h-0.5 w-8 rounded-full bg-line transition-colors group-hover:bg-accent/50" />
           </div>
@@ -674,7 +676,7 @@ function SplitPromptFields({
   const startSplitResize = (
     before: SplitPartKey,
     after: SplitPartKey,
-    e: React.MouseEvent<HTMLDivElement>
+    e: React.PointerEvent<HTMLDivElement>
   ): void => {
     e.preventDefault()
     const area = containerRef.current
@@ -686,7 +688,7 @@ function SplitPromptFields({
     const pairTotal = beforeStart + afterStart
     const min = Math.min(0.16, pairTotal / 2)
 
-    const onMove = (ev: MouseEvent): void => {
+    const onMove = (ev: PointerEvent): void => {
       const height = Math.max(1, area.getBoundingClientRect().height)
       const delta = (ev.clientY - startY) / height
       const nextBefore = Math.min(pairTotal - min, Math.max(min, beforeStart + delta))
@@ -699,13 +701,15 @@ function SplitPromptFields({
     }
 
     const onUp = (): void => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
       localStorage.setItem(SPLIT_SIZES_KEY, JSON.stringify(sizesRef.current))
     }
 
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
   }
 
   const nextOpenAfter = (key: SplitPartKey): SplitPartKey | undefined => {
@@ -735,8 +739,8 @@ function SplitPromptFields({
             />
             {nextOpen && (
               <div
-                className="group -my-1 flex h-2 shrink-0 cursor-row-resize items-center justify-center"
-                onMouseDown={(e) => startSplitResize(part.key, nextOpen, e)}
+                className="group -my-1 flex h-2 shrink-0 cursor-row-resize touch-none items-center justify-center"
+                onPointerDown={(e) => startSplitResize(part.key, nextOpen, e)}
               >
                 <div className="h-0.5 w-8 rounded-full bg-line transition-colors group-hover:bg-accent/50" />
               </div>

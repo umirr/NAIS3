@@ -1,4 +1,7 @@
 export const KO = {
+  'mobile.resizePrompt': '프롬프트 높이 조절',
+  'mobile.expandPrompt': '프롬프트 영역 늘리기',
+  'mobile.shrinkPrompt': '프롬프트 영역 줄이기',
   'mobile.importNais': 'PC 호환 백업 가져오기 (.nais)',
   'mobile.finishQueueBeforeRestore': '생성 작업을 완료하거나 취소한 뒤 복원해 주세요.',
   'mobile.selectLibraryBeforeRestore': '이미지를 복원할 라이브러리 폴더를 먼저 선택해 주세요.',
